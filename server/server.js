@@ -16,6 +16,20 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Middleware: check and run demotion once a day on-request (to work on serverless environments like Vercel)
+let lastDemotionRunDate = null;
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    const today = new Date().toISOString().split('T')[0];
+    if (lastDemotionRunDate !== today) {
+      lastDemotionRunDate = today;
+      console.log(`Auto demotion triggered by request: ${req.method} ${req.path}`);
+      runAutoDemotion().catch(err => console.error("Demotion trigger error:", err));
+    }
+  }
+  next();
+});
+
 // Authentication Endpoints
 app.post('/api/login', async (req, res) => {
   try {
@@ -898,7 +912,7 @@ async function runAutoDemotion() {
           WHEN memory_level = 'Đang nhớ' THEN 'Chưa nhớ'
           ELSE memory_level
         END,
-        last_reviewed_at = CURRENT_DATE()
+        last_reviewed_at = CURRENT_DATE
       WHERE last_reviewed_at <= DATE_SUB(CURRENT_DATE(), INTERVAL 5 DAY)
     `);
     
@@ -912,7 +926,7 @@ async function runAutoDemotion() {
           WHEN memory_level = 'Đang nhớ' THEN 'Chưa nhớ'
           ELSE memory_level
         END,
-        last_reviewed_at = CURRENT_DATE()
+        last_reviewed_at = CURRENT_DATE
       WHERE last_reviewed_at <= DATE_SUB(CURRENT_DATE(), INTERVAL 5 DAY)
     `);
     

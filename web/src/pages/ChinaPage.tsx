@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Search, Plus, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   fetchVocabularies,
   fetchStats,
-  fetchDates,
   addVocabulary,
   updateVocabulary,
   deleteVocabulary,
@@ -30,7 +29,6 @@ export const ChinaPage = () => {
   const todayString = getLocalDateString();
   const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
   const [stats, setStats] = useState({ total: 0, rat_nho: 0, da_nho: 0, dang_nho: 0, chua_nho: 0 });
-  const [studyDates, setStudyDates] = useState<string[]>([]);
 
   const [globalSearch, setGlobalSearch] = useState('');
   const [tableSearch, setTableSearch] = useState('');
@@ -107,10 +105,6 @@ export const ChinaPage = () => {
       // Fetch stats
       const statsData = await fetchStats(currentUser.id);
       setStats(statsData);
-
-      // Fetch unique study dates
-      const datesData = await fetchDates(currentUser.id);
-      setStudyDates(datesData);
 
       // Fetch vocabularies with current active query parameters (globalSearch, date filter, memory level)
       const params: any = {};

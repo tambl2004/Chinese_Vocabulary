@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, BookOpen, Languages, Plus, Edit2, Trash2, LogOut, CheckCircle2,
-  AlertCircle, Settings, X, Eye, EyeOff
+  Users, BookOpen, Languages, LogOut, CheckCircle2,
+  AlertCircle, Settings, X
 } from 'lucide-react';
 import {
-  fetchUsers,
-  addUser,
-  updateUser,
-  deleteUser,
   fetchAdminSummary,
   fetchAdminChineseStats,
   fetchAdminEnglishStats,
@@ -16,30 +12,13 @@ import {
   type UserVocabStats,
   type AdminSummary
 } from '../utils/api';
-import UserModal from '../components/UserModal';
-import ConfirmModal from '../components/ConfirmModal';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'chinese' | 'english'>('home');
-  const [users, setUsers] = useState<UserAccount[]>([]);
+  const [activeTab, setActiveTab] = useState<'home' | 'chinese' | 'english'>('home');
   const [summary, setSummary] = useState<AdminSummary>({ totalUsers: 0, totalChineseWords: 0, totalEnglishWords: 0 });
   const [chineseStats, setChineseStats] = useState<UserVocabStats[]>([]);
   const [englishStats, setEnglishStats] = useState<UserVocabStats[]>([]);
-  const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
-
-  const togglePasswordVisibility = (userId: number) => {
-    setVisiblePasswords((prev) => ({
-      ...prev,
-      [userId]: !prev[userId]
-    }));
-  };
-
-  // Modals state
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
-  const [deletingUserObj, setDeletingUserObj] = useState<UserAccount | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Toast notifications state
   interface Toast {
@@ -76,9 +55,6 @@ export const AdminDashboard: React.FC = () => {
       if (activeTab === 'home') {
         const sumData = await fetchAdminSummary();
         setSummary(sumData);
-      } else if (activeTab === 'users') {
-        const usersData = await fetchUsers();
-        setUsers(usersData);
       } else if (activeTab === 'chinese') {
         const cnStats = await fetchAdminChineseStats();
         setChineseStats(cnStats);
@@ -101,52 +77,6 @@ export const AdminDashboard: React.FC = () => {
       }
     }
   }, [activeTab]);
-
-  const handleOpenAddModal = () => {
-    setEditingUser(null);
-    setIsUserModalOpen(true);
-  };
-
-  const handleOpenEditModal = (user: UserAccount) => {
-    setEditingUser(user);
-    setIsUserModalOpen(true);
-  };
-
-  const handleSaveUser = async (payload: any) => {
-    try {
-      if (editingUser) {
-        await updateUser(editingUser.id, payload);
-        showToast('Cập nhật tài khoản thành công!', 'success');
-      } else {
-        await addUser(payload);
-        showToast('Thêm tài khoản mới thành công!', 'success');
-      }
-      await loadData();
-      setIsUserModalOpen(false);
-    } catch (error: any) {
-      showToast(error.message || 'Lưu tài khoản thất bại!', 'error');
-      throw error;
-    }
-  };
-
-  const handleOpenDeleteModal = (user: UserAccount) => {
-    setDeletingUserObj(user);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deletingUserObj) return;
-    try {
-      await deleteUser(deletingUserObj.id);
-      showToast('Xóa tài khoản thành công!', 'success');
-      await loadData();
-    } catch (error) {
-      showToast('Xóa tài khoản thất bại!', 'error');
-    } finally {
-      setIsDeleteModalOpen(false);
-      setDeletingUserObj(null);
-    }
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
@@ -173,17 +103,6 @@ export const AdminDashboard: React.FC = () => {
             >
               <Settings size={18} />
               <span>Tổng quan</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded text-sm font-semibold transition cursor-pointer ${activeTab === 'users'
-                ? 'bg-primary/10 text-primary'
-                : 'text-text-muted hover:bg-slate-50 hover:text-text-charcoal'
-                }`}
-            >
-              <Users size={18} />
-              <span>Quản lý tài khoản</span>
             </button>
 
             <button
@@ -229,7 +148,6 @@ export const AdminDashboard: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-text-charcoal capitalize">
               {activeTab === 'home' && 'Bảng điều khiển tổng quan'}
-              {activeTab === 'users' && 'Quản lý tài khoản người dùng'}
               {activeTab === 'chinese' && 'Thống kê từ vựng tiếng Trung'}
               {activeTab === 'english' && 'Thống kê từ vựng tiếng Anh'}
             </h1>
@@ -237,16 +155,6 @@ export const AdminDashboard: React.FC = () => {
               Chào mừng Admin quay trở lại hệ thống quản trị học tập.
             </p>
           </div>
-
-          {activeTab === 'users' && (
-            <button
-              onClick={handleOpenAddModal}
-              className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded shadow-sm flex items-center gap-1.5 cursor-pointer transition"
-            >
-              <Plus size={14} />
-              Thêm tài khoản
-            </button>
-          )}
         </div>
 
         {/* Screen: Summary Home */}
@@ -287,92 +195,6 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Screen: User Management */}
-        {activeTab === 'users' && (
-          <div className="bg-white rounded-card shadow-soft border border-slate-100 overflow-hidden animate-in fade-in duration-200">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted w-16">#</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Tên đăng nhập</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Mật khẩu</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Vai trò</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Ngày tạo</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {users.length > 0 ? (
-                  users.map((account, index) => (
-                    <tr key={account.id} className="hover:bg-slate-50/70 transition duration-150">
-                      <td className="py-3 px-6 text-sm text-text-muted">{index + 1}</td>
-                      <td className="py-3 px-6 text-sm font-bold text-text-charcoal flex items-center gap-2">
-                        {account.role === 'admin' ? (
-                          <span className="w-2.5 h-2.5 rounded-full bg-slate-800"></span>
-                        ) : (
-                          <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
-                        )}
-                        {account.username}
-                      </td>
-                      <td className="py-3 px-6 text-sm text-text-charcoal font-mono">
-                        <div className="flex items-center gap-2">
-                          <span>
-                            {visiblePasswords[account.id] 
-                              ? account.plain_password || '---' 
-                              : '••••••'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => togglePasswordVisibility(account.id)}
-                            className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition cursor-pointer"
-                            title={visiblePasswords[account.id] ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                          >
-                            {visiblePasswords[account.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-3 px-6 text-xs font-semibold uppercase">
-                        {account.role === 'admin' ? (
-                          <span className="inline-flex px-2 py-0.5 rounded bg-slate-100 text-slate-700">Admin</span>
-                        ) : (
-                          <span className="inline-flex px-2 py-0.5 rounded bg-teal-50 text-primary">User</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-6 text-sm text-text-muted">
-                        {account.created_at ? new Date(account.created_at).toLocaleDateString('vi-VN') : '---'}
-                      </td>
-                      <td className="py-3 px-6 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenEditModal(account)}
-                            title="Sửa tài khoản"
-                            className="p-1.5 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded transition duration-150 cursor-pointer"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleOpenDeleteModal(account)}
-                            title="Xóa tài khoản"
-                            className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded transition duration-150 cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-sm text-text-muted">
-                      Không tìm thấy tài khoản nào.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
         {/* Screen: Chinese Statistics */}
         {activeTab === 'chinese' && (
           <div className="bg-white rounded-card shadow-soft border border-slate-100 overflow-hidden animate-in fade-in duration-200">
@@ -380,7 +202,7 @@ export const AdminDashboard: React.FC = () => {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted w-16">#</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Tên đăng nhập</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">ID Người dùng</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Tổng số từ</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Rất nhớ</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Đã nhớ</th>
@@ -436,7 +258,7 @@ export const AdminDashboard: React.FC = () => {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted w-16">#</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Tên đăng nhập</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">ID Người dùng</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Tổng số từ</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Rất nhớ</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Đã nhớ</th>
@@ -485,28 +307,6 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
       </main>
-
-      {/* Account UserModal */}
-      <UserModal
-        isOpen={isUserModalOpen}
-        onClose={() => setIsUserModalOpen(false)}
-        onSave={handleSaveUser}
-        editingUser={editingUser}
-      />
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setDeletingUserObj(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        title="Xóa tài khoản người dùng"
-        message={`Bạn có chắc chắn muốn xóa tài khoản "${deletingUserObj?.username}" không? Toàn bộ từ vựng (tiếng Trung và tiếng Anh) liên kết với tài khoản này sẽ bị xóa vĩnh viễn và không thể hoàn tác.`}
-        confirmText="Xóa tài khoản"
-        cancelText="Hủy"
-      />
 
       {/* Floating Toast Notifications */}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">

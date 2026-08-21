@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { EnglishVocabulary, EnglishVocabularyInput } from '../utils/api';
+import { lookupEnglishWord } from '../utils/dictionary';
 
 interface EnglishWordModalProps {
   isOpen: boolean;
@@ -27,16 +28,12 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Auto fill details from backend lookup API
   const autoFillDetails = async (w: string) => {
     if (!w.trim()) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/english-vocabularies/lookup?word=${encodeURIComponent(w)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.transliteration) setTransliteration(data.transliteration);
-        if (data.meaning) setMeaning(data.meaning);
-      }
+      const data = await lookupEnglishWord(w);
+      if (data.transliteration) setTransliteration(data.transliteration);
+      if (data.meaning) setMeaning(data.meaning);
     } catch (err) {
       console.error('Failed to look up English word details:', err);
     }
@@ -51,25 +48,22 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/english-vocabularies/lookup?word=${encodeURIComponent(val)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.suggestions && data.suggestions.length > 0) {
-          setSuggestions(data.suggestions);
-          setShowSuggestions(true);
-        } else {
-          setSuggestions([]);
-          setShowSuggestions(false);
-        }
+      const data = await lookupEnglishWord(val);
+      if (data.suggestions && data.suggestions.length > 0) {
+        setSuggestions(data.suggestions);
+        setShowSuggestions(true);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
 
-        // If exact match exists, autofill immediately
-        if (data.transliteration && data.word.toLowerCase() === val.trim().toLowerCase()) {
-          setTransliteration(data.transliteration);
-          setMeaning(data.meaning);
-        }
+      // If exact match exists, autofill immediately
+      if (data.transliteration && data.word.toLowerCase() === val.trim().toLowerCase()) {
+        setTransliteration(data.transliteration);
+        setMeaning(data.meaning);
       }
     } catch (err) {
-      console.error('Failed to fetch autocomplete suggestions:', err);
+      console.error('Error fetching suggestions:', err);
     }
   };
 

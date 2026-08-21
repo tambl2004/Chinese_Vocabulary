@@ -1,6 +1,8 @@
+import { supabase } from '../lib/supabase';
+
 export interface Vocabulary {
   id: number;
-  user_id: number;
+  user_id: string;
   chinese: string;
   pinyin: string;
   han_viet: string;
@@ -17,7 +19,7 @@ export type VocabularyInput = Omit<Vocabulary, 'id' | 'created_at' | 'updated_at
 
 export interface EnglishVocabulary {
   id: number;
-  user_id: number;
+  user_id: string;
   word: string;
   transliteration: string;
   meaning: string;
@@ -32,7 +34,7 @@ export interface EnglishVocabulary {
 export type EnglishVocabularyInput = Omit<EnglishVocabulary, 'id' | 'created_at' | 'updated_at'>;
 
 export interface UserAccount {
-  id: number;
+  id: string;
   username: string;
   plain_password?: string;
   role: 'admin' | 'user';
@@ -40,7 +42,7 @@ export interface UserAccount {
 }
 
 export interface UserVocabStats {
-  userId: number;
+  userId: string;
   username: string;
   total: number;
   rat_nho: number;
@@ -55,198 +57,375 @@ export interface AdminSummary {
   totalEnglishWords: number;
 }
 
-const API_BASE_URL = 'http://localhost:5000/api';
-
 // Authentication
 export async function login(username: string, password: string) {
-  const res = await fetch(`${API_BASE_URL}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+  const email = username.includes('@') ? username : `${username}@vocab.com`;
+  
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Tên đăng nhập hoặc mật khẩu không chính xác');
+
+  if (error) {
+    throw new Error(error.message || 'Tên đăng nhập hoặc mật khẩu không chính xác');
   }
-  return res.json() as Promise<{ success: boolean; user: UserAccount }>;
+
+  const user = data.user;
+  const role = (user?.user_metadata?.role as 'admin' | 'user') || 'user';
+
+  if (user) {
+    triggerDemotionIfNeeded(user.id);
+  }
+
+  return {
+    success: true,
+    user: {
+      id: user!.id,
+      username: username,
+      role: role
+    } as UserAccount
+  };
 }
 
-// Admin: User CRUD
+// Helper to run 5-day auto demotion on Supabase
+async function triggerDemotionIfNeeded(userId: string) {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const lastCheck = localStorage.getItem(`last_demotion_check_${userId}`);
+    if (lastCheck !== today) {
+      localStorage.setItem(`last_demotion_check_${userId}`, today);
+      console.log('Triggering 5-day memory level demotion via Supabase RPC...');
+      await supabase.rpc('demote_user_vocabularies', { user_id_param: userId });
+    }
+  } catch (err) {
+    console.error('Failed to trigger auto demotion:', err);
+  }
+}
+
+// Admin: User CRUD (Stubbed since users are managed directly in Supabase Dashboard)
 export async function fetchUsers() {
-  const res = await fetch(`${API_BASE_URL}/admin/users`);
-  if (!res.ok) throw new Error('Failed to fetch users');
-  return res.json() as Promise<UserAccount[]>;
+  return [] as UserAccount[];
 }
 
-export async function addUser(user: Partial<UserAccount> & { password?: string }) {
-  const res = await fetch(`${API_BASE_URL}/admin/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(user),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to add user');
-  }
-  return res.json() as Promise<UserAccount>;
+export async function addUser(_user: Partial<UserAccount> & { password?: string }) {
+  return {} as any;
 }
 
-export async function updateUser(id: number, user: Partial<UserAccount> & { password?: string }) {
-  const res = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(user),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to update user');
-  }
-  return res.json() as Promise<UserAccount>;
+export async function updateUser(_id: string | number, _user: Partial<UserAccount> & { password?: string }) {
+  return {} as any;
 }
 
-export async function deleteUser(id: number) {
-  const res = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete user');
-  return res.json() as Promise<{ success: boolean; message: string }>;
+export async function deleteUser(_id: string | number) {
+  return { success: true, message: 'Deleted successfully' };
 }
 
 // Admin: Vocabulary Statistics
 export async function fetchAdminSummary() {
-  const res = await fetch(`${API_BASE_URL}/admin/stats/summary`);
-  if (!res.ok) throw new Error('Failed to fetch admin stats summary');
-  return res.json() as Promise<AdminSummary>;
+  const { count: cnCount, error: cnErr } = await supabase
+    .from('vocabularies')
+    .select('*', { count: 'exact', head: true });
+  if (cnErr) throw cnErr;
+
+  const { count: enCount, error: enErr } = await supabase
+    .from('english_vocabularies')
+    .select('*', { count: 'exact', head: true });
+  if (enErr) throw enErr;
+
+  const { data: cnUsers } = await supabase.from('vocabularies').select('user_id');
+  const { data: enUsers } = await supabase.from('english_vocabularies').select('user_id');
+  const uniqueUsers = new Set<string>();
+  cnUsers?.forEach(x => uniqueUsers.add(x.user_id));
+  enUsers?.forEach(x => uniqueUsers.add(x.user_id));
+
+  return {
+    totalUsers: uniqueUsers.size || 1,
+    totalChineseWords: cnCount || 0,
+    totalEnglishWords: enCount || 0
+  } as AdminSummary;
 }
 
 export async function fetchAdminChineseStats() {
-  const res = await fetch(`${API_BASE_URL}/admin/stats/chinese`);
-  if (!res.ok) throw new Error('Failed to fetch admin Chinese stats');
-  return res.json() as Promise<UserVocabStats[]>;
+  const { data, error } = await supabase
+    .from('vocabularies')
+    .select('user_id, memory_level');
+
+  if (error) throw error;
+
+  const statsMap = new Map<string, UserVocabStats>();
+
+  data.forEach(item => {
+    const uid = item.user_id;
+    if (!statsMap.has(uid)) {
+      statsMap.set(uid, {
+        userId: uid,
+        username: `User-${uid.substring(0, 8)}`,
+        total: 0,
+        rat_nho: 0,
+        da_nho: 0,
+        dang_nho: 0,
+        chua_nho: 0
+      });
+    }
+
+    const stat = statsMap.get(uid)!;
+    stat.total++;
+    if (item.memory_level === 'Rất nhớ') stat.rat_nho++;
+    else if (item.memory_level === 'Đã nhớ') stat.da_nho++;
+    else if (item.memory_level === 'Đang nhớ') stat.dang_nho++;
+    else if (item.memory_level === 'Chưa nhớ') stat.chua_nho++;
+  });
+
+  return Array.from(statsMap.values());
 }
 
 export async function fetchAdminEnglishStats() {
-  const res = await fetch(`${API_BASE_URL}/admin/stats/english`);
-  if (!res.ok) throw new Error('Failed to fetch admin English stats');
-  return res.json() as Promise<UserVocabStats[]>;
+  const { data, error } = await supabase
+    .from('english_vocabularies')
+    .select('user_id, memory_level');
+
+  if (error) throw error;
+
+  const statsMap = new Map<string, UserVocabStats>();
+
+  data.forEach(item => {
+    const uid = item.user_id;
+    if (!statsMap.has(uid)) {
+      statsMap.set(uid, {
+        userId: uid,
+        username: `User-${uid.substring(0, 8)}`,
+        total: 0,
+        rat_nho: 0,
+        da_nho: 0,
+        dang_nho: 0,
+        chua_nho: 0
+      });
+    }
+
+    const stat = statsMap.get(uid)!;
+    stat.total++;
+    if (item.memory_level === 'Rất nhớ') stat.rat_nho++;
+    else if (item.memory_level === 'Đã nhớ') stat.da_nho++;
+    else if (item.memory_level === 'Đang nhớ') stat.dang_nho++;
+    else if (item.memory_level === 'Chưa nhớ') stat.chua_nho++;
+  });
+
+  return Array.from(statsMap.values());
 }
 
 // Chinese Vocabulary
-export async function fetchStats(userId: number) {
-  const res = await fetch(`${API_BASE_URL}/vocabularies/stats?userId=${userId}`);
-  if (!res.ok) throw new Error('Failed to fetch stats');
-  return res.json() as Promise<{ total: number; rat_nho: number; da_nho: number; dang_nho: number; chua_nho: number }>;
+export async function fetchStats(userId: string | number) {
+  const uid = userId.toString();
+  triggerDemotionIfNeeded(uid);
+
+  const { data, error } = await supabase
+    .from('vocabularies')
+    .select('memory_level')
+    .eq('user_id', uid);
+
+  if (error) throw error;
+
+  const stats = {
+    total: data.length,
+    rat_nho: 0,
+    da_nho: 0,
+    dang_nho: 0,
+    chua_nho: 0
+  };
+
+  data.forEach(item => {
+    if (item.memory_level === 'Rất nhớ') stats.rat_nho++;
+    else if (item.memory_level === 'Đã nhớ') stats.da_nho++;
+    else if (item.memory_level === 'Đang nhớ') stats.dang_nho++;
+    else if (item.memory_level === 'Chưa nhớ') stats.chua_nho++;
+  });
+
+  return stats;
 }
 
-export async function fetchDates(userId: number) {
-  const res = await fetch(`${API_BASE_URL}/vocabularies/dates?userId=${userId}`);
-  if (!res.ok) throw new Error('Failed to fetch dates');
-  return res.json() as Promise<string[]>;
+export async function fetchDates(userId: string | number) {
+  const uid = userId.toString();
+  const { data, error } = await supabase
+    .from('vocabularies')
+    .select('study_date')
+    .eq('user_id', uid)
+    .not('study_date', 'is', null);
+
+  if (error) throw error;
+
+  const datesSet = new Set(data.map(item => item.study_date));
+  return Array.from(datesSet).sort().reverse();
 }
 
-export async function fetchVocabularies(userId: number, params?: { search?: string; memory_level?: string; study_date?: string }) {
-  const url = new URL(`${API_BASE_URL}/vocabularies`);
-  url.searchParams.append('userId', userId.toString());
+export async function fetchVocabularies(userId: string | number, params?: { search?: string; memory_level?: string; study_date?: string }) {
+  const uid = userId.toString();
+  let query = supabase.from('vocabularies').select('*').eq('user_id', uid);
+
   if (params) {
-    if (params.search) url.searchParams.append('search', params.search);
-    if (params.memory_level) url.searchParams.append('memory_level', params.memory_level);
-    if (params.study_date) url.searchParams.append('study_date', params.study_date);
+    if (params.search) {
+      const s = `%${params.search}%`;
+      query = query.or(`chinese.ilike.${s},pinyin.ilike.${s},han_viet.ilike.${s},meaning.ilike.${s}`);
+    }
+    if (params.memory_level && params.memory_level !== 'all') {
+      query = query.eq('memory_level', params.memory_level);
+    }
+    if (params.study_date && params.study_date !== 'all') {
+      query = query.eq('study_date', params.study_date);
+    }
   }
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch vocabularies');
-  return res.json() as Promise<Vocabulary[]>;
+
+  const { data, error } = await query.order('id', { ascending: false });
+  if (error) throw error;
+  return data as Vocabulary[];
 }
 
 export async function addVocabulary(word: Partial<VocabularyInput>) {
-  const res = await fetch(`${API_BASE_URL}/vocabularies`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(word),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to add vocabulary');
-  }
-  return res.json() as Promise<Vocabulary>;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('vocabularies')
+    .insert([{
+      ...word,
+      user_id: user.id,
+      last_reviewed_at: new Date().toISOString().split('T')[0]
+    }])
+    .select();
+
+  if (error) throw error;
+  return data[0] as Vocabulary;
 }
 
 export async function updateVocabulary(id: number, word: Partial<VocabularyInput>) {
-  const res = await fetch(`${API_BASE_URL}/vocabularies/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(word),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to update vocabulary');
+  const payload: any = { ...word };
+  if (word.memory_level) {
+    payload.last_reviewed_at = new Date().toISOString().split('T')[0];
   }
-  return res.json() as Promise<Vocabulary>;
+
+  const { data, error } = await supabase
+    .from('vocabularies')
+    .update(payload)
+    .eq('id', id)
+    .select();
+
+  if (error) throw error;
+  return data[0] as Vocabulary;
 }
 
 export async function deleteVocabulary(id: number) {
-  const res = await fetch(`${API_BASE_URL}/vocabularies/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete vocabulary');
-  return res.json() as Promise<{ message: string; id: number }>;
+  const { error } = await supabase
+    .from('vocabularies')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return { message: 'Deleted successfully', id };
 }
 
 // English Vocabulary
-export async function fetchEnglishStats(userId: number) {
-  const res = await fetch(`${API_BASE_URL}/english-vocabularies/stats?userId=${userId}`);
-  if (!res.ok) throw new Error('Failed to fetch English stats');
-  return res.json() as Promise<{ total: number; rat_nho: number; da_nho: number; dang_nho: number; chua_nho: number }>;
+export async function fetchEnglishStats(userId: string | number) {
+  const uid = userId.toString();
+  triggerDemotionIfNeeded(uid);
+
+  const { data, error } = await supabase
+    .from('english_vocabularies')
+    .select('memory_level')
+    .eq('user_id', uid);
+
+  if (error) throw error;
+
+  const stats = {
+    total: data.length,
+    rat_nho: 0,
+    da_nho: 0,
+    dang_nho: 0,
+    chua_nho: 0
+  };
+
+  data.forEach(item => {
+    if (item.memory_level === 'Rất nhớ') stats.rat_nho++;
+    else if (item.memory_level === 'Đã nhớ') stats.da_nho++;
+    else if (item.memory_level === 'Đang nhớ') stats.dang_nho++;
+    else if (item.memory_level === 'Chưa nhớ') stats.chua_nho++;
+  });
+
+  return stats;
 }
 
-export async function fetchEnglishDates(userId: number) {
-  const res = await fetch(`${API_BASE_URL}/english-vocabularies/dates?userId=${userId}`);
-  if (!res.ok) throw new Error('Failed to fetch English dates');
-  return res.json() as Promise<string[]>;
+export async function fetchEnglishDates(userId: string | number) {
+  const uid = userId.toString();
+  const { data, error } = await supabase
+    .from('english_vocabularies')
+    .select('study_date')
+    .eq('user_id', uid)
+    .not('study_date', 'is', null);
+
+  if (error) throw error;
+
+  const datesSet = new Set(data.map(item => item.study_date));
+  return Array.from(datesSet).sort().reverse();
 }
 
-export async function fetchEnglishVocabularies(userId: number, params?: { search?: string; memory_level?: string; study_date?: string }) {
-  const url = new URL(`${API_BASE_URL}/english-vocabularies`);
-  url.searchParams.append('userId', userId.toString());
+export async function fetchEnglishVocabularies(userId: string | number, params?: { search?: string; memory_level?: string; study_date?: string }) {
+  const uid = userId.toString();
+  let query = supabase.from('english_vocabularies').select('*').eq('user_id', uid);
+
   if (params) {
-    if (params.search) url.searchParams.append('search', params.search);
-    if (params.memory_level) url.searchParams.append('memory_level', params.memory_level);
-    if (params.study_date) url.searchParams.append('study_date', params.study_date);
+    if (params.search) {
+      const s = `%${params.search}%`;
+      query = query.or(`word.ilike.${s},transliteration.ilike.${s},meaning.ilike.${s}`);
+    }
+    if (params.memory_level && params.memory_level !== 'all') {
+      query = query.eq('memory_level', params.memory_level);
+    }
+    if (params.study_date && params.study_date !== 'all') {
+      query = query.eq('study_date', params.study_date);
+    }
   }
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch English vocabularies');
-  return res.json() as Promise<EnglishVocabulary[]>;
+
+  const { data, error } = await query.order('id', { ascending: false });
+  if (error) throw error;
+  return data as EnglishVocabulary[];
 }
 
 export async function addEnglishVocabulary(word: Partial<EnglishVocabularyInput>) {
-  const res = await fetch(`${API_BASE_URL}/english-vocabularies`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(word),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to add English vocabulary');
-  }
-  return res.json() as Promise<EnglishVocabulary>;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('english_vocabularies')
+    .insert([{
+      ...word,
+      user_id: user.id,
+      last_reviewed_at: new Date().toISOString().split('T')[0]
+    }])
+    .select();
+
+  if (error) throw error;
+  return data[0] as EnglishVocabulary;
 }
 
 export async function updateEnglishVocabulary(id: number, word: Partial<EnglishVocabularyInput>) {
-  const res = await fetch(`${API_BASE_URL}/english-vocabularies/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(word),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to update English vocabulary');
+  const payload: any = { ...word };
+  if (word.memory_level) {
+    payload.last_reviewed_at = new Date().toISOString().split('T')[0];
   }
-  return res.json() as Promise<EnglishVocabulary>;
+
+  const { data, error } = await supabase
+    .from('english_vocabularies')
+    .update(payload)
+    .eq('id', id)
+    .select();
+
+  if (error) throw error;
+  return data[0] as EnglishVocabulary;
 }
 
 export async function deleteEnglishVocabulary(id: number) {
-  const res = await fetch(`${API_BASE_URL}/english-vocabularies/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete English vocabulary');
-  return res.json() as Promise<{ message: string; id: number }>;
+  const { error } = await supabase
+    .from('english_vocabularies')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return { message: 'Deleted successfully', id };
 }

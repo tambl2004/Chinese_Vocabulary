@@ -9,6 +9,7 @@ interface ConfirmModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  type?: string;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({

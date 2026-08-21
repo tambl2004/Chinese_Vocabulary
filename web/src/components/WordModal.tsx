@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Vocabulary, VocabularyInput } from '../utils/api';
+import { lookupChineseWord } from '../utils/dictionary';
 
 interface WordModalProps {
   isOpen: boolean;
@@ -36,13 +37,10 @@ export const WordModal: React.FC<WordModalProps> = ({
     if (!hasChinese) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/vocabularies/lookup?word=${encodeURIComponent(word)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.pinyin) setPinyin(data.pinyin);
-        if (data.han_viet) setHanViet(data.han_viet);
-        if (data.meaning) setMeaning(data.meaning);
-      }
+      const data = await lookupChineseWord(word);
+      if (data.pinyin) setPinyin(data.pinyin);
+      if (data.han_viet) setHanViet(data.han_viet);
+      if (data.meaning) setMeaning(data.meaning);
     } catch (err) {
       console.error('Failed to look up word details:', err);
     }

@@ -6,6 +6,7 @@ interface StatsCardProps {
   daNho: number;
   dangNho: number;
   chuaNho: number;
+  onStartReview?: () => void;
   onStatClick?: (level: string) => void;
 }
 
