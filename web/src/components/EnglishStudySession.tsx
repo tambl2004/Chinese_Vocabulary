@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, X, Eye, ArrowRight, RotateCcw } from 'lucide-react';
-import type { Vocabulary } from '../utils/api';
-import { speakChinese } from '../utils/speech';
+import type { EnglishVocabulary } from '../utils/api';
+import { speakEnglish } from '../utils/speech';
 
-interface StudySessionProps {
-  vocabularies: Vocabulary[];
-  onUpdateLevel: (id: number, level: Vocabulary['memory_level']) => Promise<void>;
+interface EnglishStudySessionProps {
+  vocabularies: EnglishVocabulary[];
+  onUpdateLevel: (id: number, level: EnglishVocabulary['memory_level']) => Promise<void>;
   onClose: () => void;
 }
 
-export const StudySession: React.FC<StudySessionProps> = ({
+export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
   vocabularies,
   onUpdateLevel,
   onClose
@@ -27,7 +27,7 @@ export const StudySession: React.FC<StudySessionProps> = ({
   // Speak word when it loads
   useEffect(() => {
     if (currentWord && !hasCompleted) {
-      speakChinese(currentWord.chinese);
+      speakEnglish(currentWord.word);
       setShowAnswer(false);
     }
   }, [currentIndex, hasCompleted]);
@@ -35,11 +35,11 @@ export const StudySession: React.FC<StudySessionProps> = ({
   if (vocabularies.length === 0) {
     return (
       <div className="fixed inset-0 bg-[#f7f9fb] z-50 flex flex-col justify-center items-center p-6">
-        <div className="bg-white rounded-card shadow-soft p-8 max-w-md w-full text-center border border-slate-100">
+        <div className="bg-white rounded-card shadow-soft p-8 max-w-md w-full text-center border border-slate-100 animate-in zoom-in-95 duration-200">
           <p className="text-text-muted mb-4">Không có từ vựng nào khả dụng để ôn tập.</p>
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-primary hover:bg-primary-dark text-white rounded font-medium transition"
+            className="px-5 py-2 bg-primary hover:bg-primary-dark text-white rounded font-medium transition cursor-pointer"
           >
             Quay lại
           </button>
@@ -48,7 +48,7 @@ export const StudySession: React.FC<StudySessionProps> = ({
     );
   }
 
-  const handleUpdate = async (level: Vocabulary['memory_level']) => {
+  const handleUpdate = async (level: EnglishVocabulary['memory_level']) => {
     if (isUpdating || !currentWord) return;
     try {
       setIsUpdating(true);
@@ -97,7 +97,7 @@ export const StudySession: React.FC<StudySessionProps> = ({
           )}
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-status-red-text bg-status-red-bg hover:bg-status-red-bg/85 border border-red-200/40 rounded transition duration-200 shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-status-red-text bg-status-red-bg hover:bg-status-red-bg/85 border border-red-200/40 rounded transition duration-200 shadow-xs cursor-pointer"
           >
             <X size={14} className="stroke-[2.5px]" />
             Đóng phiên
@@ -115,19 +115,19 @@ export const StudySession: React.FC<StudySessionProps> = ({
             </div>
             <h3 className="text-xl font-bold text-text-charcoal mb-2">Hoàn thành phiên ôn tập!</h3>
             <p className="text-sm text-text-muted mb-6">
-              Bạn đã ôn tập xong tất cả {vocabularies.length} từ trong danh sách này.
+              Bạn đã ôn tập xong tất cả {vocabularies.length} từ tiếng Anh trong danh sách này.
             </p>
             <div className="flex flex-col gap-3">
               <button
                 onClick={handleRestart}
-                className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white rounded font-semibold shadow-sm transition duration-200 text-sm flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white rounded font-semibold shadow-sm transition duration-200 text-sm flex items-center justify-center gap-2 cursor-pointer"
               >
                 <RotateCcw size={16} />
                 Luyện tập lại
               </button>
               <button
                 onClick={onClose}
-                className="w-full py-2.5 text-text-charcoal hover:bg-slate-50 border border-slate-200 rounded font-semibold transition duration-200 text-sm"
+                className="w-full py-2.5 text-text-charcoal hover:bg-slate-50 border border-slate-200 rounded font-semibold transition duration-200 text-sm cursor-pointer"
               >
                 Quay lại trang chính
               </button>
@@ -136,22 +136,22 @@ export const StudySession: React.FC<StudySessionProps> = ({
         ) : (
           // Active review card
           <div className="flex flex-col items-center max-w-lg w-full">
-            {/* The Level 1 Study Card */}
+            {/* Study Card */}
             <div className="bg-white rounded-card shadow-soft border border-slate-100 w-full p-8 md:p-10 mb-6 flex flex-col items-center relative transition-all duration-300 min-h-[380px] justify-between">
 
-              {/* Pronunciation Float Button */}
+              {/* Pronunciation Button */}
               <button
-                onClick={() => speakChinese(currentWord.chinese)}
+                onClick={() => speakEnglish(currentWord.word)}
                 title="Nghe phát âm"
-                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-primary hover:bg-teal-50 rounded-full transition duration-150"
+                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-primary hover:bg-teal-50 rounded-full transition duration-150 cursor-pointer"
               >
                 <Volume2 size={20} />
               </button>
 
-              {/* Chinese Character */}
+              {/* English Word */}
               <div className="flex-1 flex items-center justify-center py-6">
-                <span className="font-chinese text-7xl md:text-8xl font-medium text-primary tracking-wide leading-none select-none select-all">
-                  {currentWord.chinese}
+                <span className="text-5xl md:text-6xl font-bold text-primary tracking-wide leading-none select-all text-center">
+                  {currentWord.word}
                 </span>
               </div>
 
@@ -159,14 +159,10 @@ export const StudySession: React.FC<StudySessionProps> = ({
               <div className="w-full">
                 {showAnswer ? (
                   <div className="w-full border-t border-slate-100 pt-6 animate-in fade-in slide-in-from-bottom-2 duration-200 text-center">
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       <div>
                         <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-1">Phiên âm</span>
-                        <span className="text-sm md:text-base font-bold text-text-charcoal">{currentWord.pinyin}</span>
-                      </div>
-                      <div>
-                        <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-1">Hán Việt</span>
-                        <span className="text-sm md:text-base font-bold text-text-charcoal">{currentWord.han_viet}</span>
+                        <span className="text-sm md:text-base font-bold text-slate-600 font-mono">{currentWord.transliteration}</span>
                       </div>
                       <div>
                         <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-1">Nghĩa</span>
@@ -234,4 +230,4 @@ export const StudySession: React.FC<StudySessionProps> = ({
     </div>
   );
 };
-export default StudySession;
+export default EnglishStudySession;

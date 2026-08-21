@@ -48,3 +48,54 @@ export function speakChinese(text: string): Promise<void> {
     }
   });
 }
+
+export function speakEnglish(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) {
+      console.warn('Speech synthesis not supported in this browser.');
+      resolve();
+      return;
+    }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    // Prepare utterance
+    const cleanText = text.replace(/[^a-zA-Z0-9\s]/g, ''); // Speak only alphanumeric characters
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9; // Slightly slower for language learners
+
+    // Helper to find and set voice
+    const setVoiceAndSpeak = () => {
+      const voices = window.speechSynthesis.getVoices();
+      // Try to find a US English voice, fallback to other English accents
+      const englishVoice = voices.find(v => v.lang === 'en-US') || 
+                           voices.find(v => v.lang.startsWith('en-')) ||
+                           voices.find(v => v.name.includes('English') || v.name.includes('Google US English'));
+      
+      if (englishVoice) {
+        utterance.voice = englishVoice;
+      }
+      
+      utterance.onend = () => resolve();
+      utterance.onerror = (e) => {
+        console.error('Speech synthesis error:', e);
+        resolve();
+      };
+      
+      window.speechSynthesis.speak(utterance);
+    };
+
+    // Chrome loads voices asynchronously
+    if (window.speechSynthesis.getVoices().length === 0) {
+      const voicesChanged = () => {
+        setVoiceAndSpeak();
+        window.speechSynthesis.removeEventListener('voiceschanged', voicesChanged);
+      };
+      window.speechSynthesis.addEventListener('voiceschanged', voicesChanged);
+    } else {
+      setVoiceAndSpeak();
+    }
+  });
+}

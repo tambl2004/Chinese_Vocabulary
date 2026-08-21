@@ -1,105 +1,97 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Vocabulary, VocabularyInput } from '../utils/api';
+import type { EnglishVocabulary, EnglishVocabularyInput } from '../utils/api';
 
-interface WordModalProps {
+interface EnglishWordModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (word: Partial<VocabularyInput>) => Promise<void>;
-  editingWord: Vocabulary | null;
+  onSave: (word: Partial<EnglishVocabularyInput>) => Promise<void>;
+  editingWord: EnglishVocabulary | null;
 }
 
-export const WordModal: React.FC<WordModalProps> = ({
+export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
   isOpen,
   onClose,
   onSave,
   editingWord
 }) => {
-  const [chinese, setChinese] = useState('');
-  const [pinyin, setPinyin] = useState('');
-  const [hanViet, setHanViet] = useState('');
+  const [word, setWord] = useState('');
+  const [transliteration, setTransliteration] = useState('');
   const [meaning, setMeaning] = useState('');
   const [memoryLevel, setMemoryLevel] = useState<'Chưa nhớ' | 'Đang nhớ' | 'Đã nhớ' | 'Rất nhớ'>('Chưa nhớ');
   const [studyDate, setStudyDate] = useState('');
   const [wordType, setWordType] = useState('Danh từ');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Auto-fill details using Backend Lookup API
-  const autoFillDetails = async (word: string) => {
-    if (!word.trim()) return;
-    
-    // Check if contains Chinese characters
-    const hasChinese = /[\u4e00-\u9fa5]/.test(word);
-    if (!hasChinese) return;
-
+  // Auto fill details from backend lookup API
+  const autoFillDetails = async (w: string) => {
+    if (!w.trim()) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/vocabularies/lookup?word=${encodeURIComponent(word)}`);
+      const res = await fetch(`http://localhost:5000/api/english-vocabularies/lookup?word=${encodeURIComponent(w)}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.pinyin) setPinyin(data.pinyin);
-        if (data.han_viet) setHanViet(data.han_viet);
+        if (data.transliteration) setTransliteration(data.transliteration);
         if (data.meaning) setMeaning(data.meaning);
       }
     } catch (err) {
-      console.error('Failed to look up word details:', err);
+      console.error('Failed to look up English word details:', err);
     }
   };
 
-  const handleChineseChange = async (val: string) => {
-    setChinese(val);
-    
-    // If empty or only Chinese characters, clear suggestions
-    const containsLatin = /[a-zA-Z]/.test(val);
-    if (!containsLatin || !val.trim()) {
+  const handleWordChange = async (val: string) => {
+    setWord(val);
+    if (!val.trim()) {
       setSuggestions([]);
       setShowSuggestions(false);
-      
-      if (val.trim() && /[\u4e00-\u9fa5]/.test(val)) {
-        autoFillDetails(val);
-      }
       return;
     }
 
-    // Call Google Input Tools for IME suggestions
     try {
-      const res = await fetch(
-        `https://inputtools.google.com/request?text=${encodeURIComponent(val)}&itc=zh-t-i0-pinyin&num=8`
-      );
+      const res = await fetch(`http://localhost:5000/api/english-vocabularies/lookup?word=${encodeURIComponent(val)}`);
       if (res.ok) {
         const data = await res.json();
-        if (data[0] === 'SUCCESS' && data[1]?.[0]?.[1]) {
-          setSuggestions(data[1][0][1]);
+        if (data.suggestions && data.suggestions.length > 0) {
+          setSuggestions(data.suggestions);
           setShowSuggestions(true);
+        } else {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+
+        // If exact match exists, autofill immediately
+        if (data.transliteration && data.word.toLowerCase() === val.trim().toLowerCase()) {
+          setTransliteration(data.transliteration);
+          setMeaning(data.meaning);
         }
       }
     } catch (err) {
-      console.error('Failed to get suggestions:', err);
+      console.error('Failed to fetch autocomplete suggestions:', err);
     }
   };
 
-  const handleSelectSuggestion = async (candidate: string) => {
-    setChinese(candidate);
+  const handleSelectSuggestion = (candidate: any) => {
+    setWord(candidate.word);
+    setTransliteration(candidate.transliteration);
+    setMeaning(candidate.meaning);
     setSuggestions([]);
     setShowSuggestions(false);
-    await autoFillDetails(candidate);
   };
 
   useEffect(() => {
     if (editingWord) {
-      setChinese(editingWord.chinese);
-      setPinyin(editingWord.pinyin);
-      setHanViet(editingWord.han_viet);
+      setWord(editingWord.word);
+      setTransliteration(editingWord.transliteration);
       setMeaning(editingWord.meaning);
       setWordType(editingWord.word_type || 'Danh từ');
       setMemoryLevel(editingWord.memory_level);
       setStudyDate(editingWord.study_date || new Date().toISOString().split('T')[0]);
     } else {
-      setChinese('');
-      setPinyin('');
-      setHanViet('');
+      setWord('');
+      setTransliteration('');
       setMeaning('');
       setWordType('Danh từ');
       setMemoryLevel('Chưa nhớ');
@@ -114,7 +106,7 @@ export const WordModal: React.FC<WordModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chinese.trim() || !pinyin.trim() || !hanViet.trim() || !meaning.trim()) {
+    if (!word.trim() || !transliteration.trim() || !meaning.trim()) {
       setError('Vui lòng điền đầy đủ các thông tin bắt buộc.');
       return;
     }
@@ -123,9 +115,8 @@ export const WordModal: React.FC<WordModalProps> = ({
       setIsSubmitting(true);
       setError('');
       await onSave({
-        chinese: chinese.trim(),
-        pinyin: pinyin.trim(),
-        han_viet: hanViet.trim(),
+        word: word.trim(),
+        transliteration: transliteration.trim(),
         meaning: meaning.trim(),
         word_type: wordType,
         memory_level: memoryLevel,
@@ -140,7 +131,7 @@ export const WordModal: React.FC<WordModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity" 
@@ -148,15 +139,15 @@ export const WordModal: React.FC<WordModalProps> = ({
       />
       
       {/* Modal Dialog */}
-      <div className="relative bg-white rounded-card shadow-soft-lg w-full max-w-lg border border-slate-100 overflow-hidden z-10 animate-in fade-in zoom-in duration-200">
+      <div className="relative bg-white rounded-card shadow-soft-lg w-full max-w-lg border border-slate-100 overflow-hidden z-10 animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
           <h3 className="text-lg font-bold text-text-charcoal">
-            {editingWord ? 'Chỉnh sửa từ vựng' : 'Thêm từ vựng mới'}
+            {editingWord ? 'Chỉnh sửa từ vựng tiếng Anh' : 'Thêm từ vựng tiếng Anh mới'}
           </h3>
           <button 
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-50 transition"
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-50 transition cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -172,27 +163,27 @@ export const WordModal: React.FC<WordModalProps> = ({
 
           <div className="space-y-4">
             <div className="relative">
-              <label htmlFor="chinese" className="block text-xs font-semibold text-text-muted mb-1.5">
-                Chữ Hán (中文) <span className="text-red-500">*</span>
+              <label htmlFor="word" className="block text-xs font-semibold text-text-muted mb-1.5">
+                Từ vựng (Word) <span className="text-red-500">*</span>
               </label>
               <input
-                id="chinese"
+                id="word"
                 type="text"
-                value={chinese}
-                onChange={(e) => handleChineseChange(e.target.value)}
+                value={word}
+                onChange={(e) => handleWordChange(e.target.value)}
                 onBlur={() => {
                   setTimeout(() => {
                     setShowSuggestions(false);
-                    autoFillDetails(chinese);
+                    autoFillDetails(word);
                   }, 250);
                 }}
-                placeholder="Ví dụ: g hoặc 城里"
-                className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded font-chinese"
+                placeholder="Ví dụ: Language"
+                className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded font-medium"
                 required
                 autoComplete="off"
               />
-              
-              {/* Autocomplete Suggestions Dropdown */}
+
+              {/* Suggestions Dropdown */}
               {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto z-50 divide-y divide-slate-100 animate-in fade-in duration-100">
                   {suggestions.map((cand, idx) => (
@@ -200,43 +191,31 @@ export const WordModal: React.FC<WordModalProps> = ({
                       key={idx}
                       type="button"
                       onClick={() => handleSelectSuggestion(cand)}
-                      className="w-full text-left px-4 py-2 text-sm text-text-charcoal hover:bg-slate-50 font-chinese transition-colors flex items-center justify-between cursor-pointer"
+                      className="w-full text-left px-4 py-2.5 text-xs text-text-charcoal hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer font-sans"
                     >
-                      <span className="font-bold text-base">{cand}</span>
-                      <span className="text-xs text-text-muted">Gợi ý từ Pinyin</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-sm text-primary">{cand.word}</span>
+                        <span className="text-[10px] text-slate-400 font-mono mt-0.5">{cand.transliteration}</span>
+                      </div>
+                      <span className="text-xs text-text-muted font-medium italic">{cand.meaning}</span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="pinyin" className="block text-xs font-semibold text-text-muted mb-1.5">
-                  Phiên âm (Pinyin) <span className="text-red-500">*</span>
+                <label htmlFor="transliteration" className="block text-xs font-semibold text-text-muted mb-1.5">
+                  Phiên âm (Transliteration) <span className="text-red-500">*</span>
                 </label>
                 <input
-                  id="pinyin"
+                  id="transliteration"
                   type="text"
-                  value={pinyin}
-                  onChange={(e) => setPinyin(e.target.value)}
-                  placeholder="Ví dụ: chéng lǐ"
-                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="hanViet" className="block text-xs font-semibold text-text-muted mb-1.5">
-                  Hán Việt <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="hanViet"
-                  type="text"
-                  value={hanViet}
-                  onChange={(e) => setHanViet(e.target.value)}
-                  placeholder="Ví dụ: thành lý"
-                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
+                  value={transliteration}
+                  onChange={(e) => setTransliteration(e.target.value)}
+                  placeholder="Ví dụ: /ˈlæŋɡwɪdʒ/"
+                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded font-mono"
                   required
                 />
               </div>
@@ -249,7 +228,7 @@ export const WordModal: React.FC<WordModalProps> = ({
                   id="wordType"
                   value={wordType}
                   onChange={(e) => setWordType(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
+                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded cursor-pointer"
                 >
                   <option value="Danh từ">Danh từ</option>
                   <option value="Động từ">Động từ</option>
@@ -268,7 +247,7 @@ export const WordModal: React.FC<WordModalProps> = ({
                 type="text"
                 value={meaning}
                 onChange={(e) => setMeaning(e.target.value)}
-                placeholder="Ví dụ: trong thành phố"
+                placeholder="Ví dụ: Ngôn ngữ"
                 className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
                 required
               />
@@ -283,7 +262,7 @@ export const WordModal: React.FC<WordModalProps> = ({
                   id="memoryLevel"
                   value={memoryLevel}
                   onChange={(e) => setMemoryLevel(e.target.value as any)}
-                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
+                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded cursor-pointer"
                 >
                   <option value="Chưa nhớ">Chưa nhớ</option>
                   <option value="Đang nhớ">Đang nhớ</option>
@@ -301,7 +280,7 @@ export const WordModal: React.FC<WordModalProps> = ({
                   type="date"
                   value={studyDate}
                   onChange={(e) => setStudyDate(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
+                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded cursor-pointer"
                 />
               </div>
             </div>
@@ -313,14 +292,14 @@ export const WordModal: React.FC<WordModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-5 py-2 text-sm font-semibold text-text-muted hover:text-text-charcoal hover:bg-slate-50 rounded transition duration-200"
+              className="px-5 py-2 text-sm font-semibold text-text-muted hover:text-text-charcoal hover:bg-slate-50 rounded transition duration-200 cursor-pointer"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded shadow-sm transition duration-200 flex items-center justify-center min-w-[80px]"
+              className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded shadow-sm transition duration-200 flex items-center justify-center min-w-[80px] cursor-pointer"
             >
               {isSubmitting ? 'Đang lưu...' : 'Lưu'}
             </button>
@@ -330,4 +309,4 @@ export const WordModal: React.FC<WordModalProps> = ({
     </div>
   );
 };
-export default WordModal;
+export default EnglishWordModal;

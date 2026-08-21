@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { Volume2, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Vocabulary } from '../utils/api';
-import { speakChinese } from '../utils/speech';
+import type { EnglishVocabulary } from '../utils/api';
+import { speakEnglish } from '../utils/speech';
 
-interface VocabularyTableProps {
-  vocabularies: Vocabulary[];
-  onEdit: (word: Vocabulary) => void;
+interface EnglishVocabularyTableProps {
+  vocabularies: EnglishVocabulary[];
+  onEdit: (word: EnglishVocabulary) => void;
   onDelete: (id: number) => void;
 }
 
-export const VocabularyTable: React.FC<VocabularyTableProps> = ({
+export const EnglishVocabularyTable: React.FC<EnglishVocabularyTableProps> = ({
   vocabularies,
   onEdit,
   onDelete
@@ -29,7 +29,7 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
     }
   };
 
-  const getStatusBadge = (level: Vocabulary['memory_level']) => {
+  const getStatusBadge = (level: EnglishVocabulary['memory_level']) => {
     switch (level) {
       case 'Rất nhớ':
         return (
@@ -41,7 +41,7 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
       case 'Đã nhớ':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-status-green-text bg-status-green-bg rounded-full border border-teal-200/50">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00685f]"></span>
             Đã nhớ
           </span>
         );
@@ -70,11 +70,10 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
               <th className="py-4 px-6 text-xs font-semibold text-text-muted w-16">#</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">中文</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Pinyin</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Hán Việt</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Words (Từ vựng)</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Transliteration (Phiên âm)</th>
               <th className="py-4 px-6 text-xs font-semibold text-text-muted">Loại từ</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Nghĩa</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Means (Nghĩa)</th>
               <th className="py-4 px-6 text-xs font-semibold text-text-muted">Mức nhớ</th>
               <th className="py-4 px-6 text-xs font-semibold text-text-muted text-right">Thao tác</th>
             </tr>
@@ -86,33 +85,30 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
                   key={word.id}
                   className="hover:bg-slate-50 transition-colors duration-150 group"
                 >
-                  <td className="py-2 px-6 text-sm text-text-muted">
+                  <td className="py-3 px-6 text-sm text-text-muted">
                     {startIndex + index + 1}
                   </td>
-                  <td className="py-2 px-6 text-xl font-chinese font-bold text-text-charcoal tracking-wide">
-                    {word.chinese}
+                  <td className="py-3 px-6 text-base font-bold text-text-charcoal tracking-wide">
+                    {word.word}
                   </td>
-                  <td className="py-2 px-6 text-sm text-text-charcoal font-medium">
-                    {word.pinyin}
+                  <td className="py-3 px-6 text-sm text-slate-500 font-mono">
+                    {word.transliteration}
                   </td>
-                  <td className="py-2 px-6 text-sm text-text-muted">
-                    {word.han_viet}
-                  </td>
-                  <td className="py-2 px-6 text-xs font-semibold">
+                  <td className="py-3 px-6 text-xs font-semibold">
                     <span className="inline-flex px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                       {word.word_type || 'Danh từ'}
                     </span>
                   </td>
-                  <td className="py-2 px-6 text-sm text-text-charcoal">
+                  <td className="py-3 px-6 text-sm text-text-charcoal font-medium">
                     {word.meaning}
                   </td>
-                  <td className="py-2 px-6">
+                  <td className="py-3 px-6">
                     {getStatusBadge(word.memory_level)}
                   </td>
-                  <td className="py-2 px-6 text-right">
+                  <td className="py-3 px-6 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
-                        onClick={() => speakChinese(word.chinese)}
+                        onClick={() => speakEnglish(word.word)}
                         title="Phát âm"
                         className="p-1.5 text-primary bg-primary/10 hover:bg-primary/20 rounded transition duration-150 cursor-pointer"
                       >
@@ -138,7 +134,7 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
               ))
             ) : (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-sm text-text-muted">
+                <td colSpan={7} className="py-12 text-center text-sm text-text-muted">
                   Không tìm thấy từ vựng nào.
                 </td>
               </tr>
@@ -219,4 +215,4 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
     </div>
   );
 };
-export default VocabularyTable;
+export default EnglishVocabularyTable;
