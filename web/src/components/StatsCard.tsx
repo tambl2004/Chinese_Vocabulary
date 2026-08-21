@@ -3,9 +3,9 @@ import React from 'react';
 interface StatsCardProps {
   total: number;
   ratNho: number;
-  daNho: number;
-  dangNho: number;
-  chuaNho: number;
+  nho: number;
+  hoiNho: number;
+  deQuen: number;
   onStartReview?: () => void;
   onStatClick?: (level: string) => void;
 }
@@ -13,9 +13,9 @@ interface StatsCardProps {
 export const StatsCard: React.FC<StatsCardProps> = ({
   total,
   ratNho,
-  daNho,
-  dangNho,
-  chuaNho,
+  nho,
+  hoiNho,
+  deQuen,
   onStartReview,
   onStatClick
 }) => {
@@ -56,35 +56,35 @@ export const StatsCard: React.FC<StatsCardProps> = ({
         </div>
 
         <div 
-          onClick={() => onStatClick?.('Đã nhớ')}
+          onClick={() => onStatClick?.('Nhớ')}
           className={`flex flex-col items-center justify-center min-w-[85px] text-center pl-4 md:pl-6 ${onStatClick ? 'cursor-pointer hover:opacity-80 transition' : ''}`}
         >
-          <span className="text-2xl font-bold text-status-green-text tracking-tight">{daNho}</span>
+          <span className="text-2xl font-bold text-status-green-text tracking-tight">{nho}</span>
           <span className="text-xs text-text-muted font-medium mt-1 flex items-center gap-1.5 justify-center">
             <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span>
-            Đã nhớ
+            Nhớ
           </span>
         </div>
 
         <div 
-          onClick={() => onStatClick?.('Đang nhớ')}
+          onClick={() => onStatClick?.('Hơi nhớ')}
           className={`flex flex-col items-center justify-center min-w-[85px] text-center pl-4 md:pl-6 ${onStatClick ? 'cursor-pointer hover:opacity-80 transition' : ''}`}
         >
-          <span className="text-2xl font-bold text-status-yellow-text tracking-tight">{dangNho}</span>
+          <span className="text-2xl font-bold text-status-yellow-text tracking-tight">{hoiNho}</span>
           <span className="text-xs text-text-muted font-medium mt-1 flex items-center gap-1.5 justify-center">
             <span className="w-2.5 h-2.5 rounded-full bg-status-yellow-text inline-block"></span>
-            Đang nhớ
+            Hơi nhớ
           </span>
         </div>
 
         <div 
-          onClick={() => onStatClick?.('Chưa nhớ')}
+          onClick={() => onStatClick?.('Dễ quên')}
           className={`flex flex-col items-center justify-center min-w-[85px] text-center pl-4 md:pl-6 ${onStatClick ? 'cursor-pointer hover:opacity-80 transition' : ''}`}
         >
-          <span className="text-2xl font-bold text-status-red-text tracking-tight">{chuaNho}</span>
+          <span className="text-2xl font-bold text-status-red-text tracking-tight">{deQuen}</span>
           <span className="text-xs text-text-muted font-medium mt-1 flex items-center gap-1.5 justify-center">
             <span className="w-2.5 h-2.5 rounded-full bg-status-red-text inline-block"></span>
-            Chưa nhớ
+            Dễ quên
           </span>
         </div>
       </div>

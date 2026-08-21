@@ -49,7 +49,7 @@ const StudyOptionsModal: React.FC<StudyOptionsModalProps> = ({ isOpen, onClose, 
             </div>
             <div>
               <h4 className="font-semibold text-text-charcoal">Ôn theo mức độ</h4>
-              <p className="text-xs text-text-muted mt-1">Ưu tiên từ "Chưa nhớ" đến "Rất nhớ".</p>
+              <p className="text-xs text-text-muted mt-1">Ưu tiên từ "Dễ quên" đến "Rất nhớ".</p>
             </div>
           </button>
 

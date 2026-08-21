@@ -8,7 +8,7 @@ export interface Vocabulary {
   han_viet: string;
   meaning: string;
   word_type: string | null;
-  memory_level: 'Chưa nhớ' | 'Đang nhớ' | 'Đã nhớ' | 'Rất nhớ';
+  memory_level: 'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ';
   study_date: string | null; // YYYY-MM-DD
   last_reviewed_at: string | null; // YYYY-MM-DD
   created_at: string;
@@ -24,7 +24,7 @@ export interface EnglishVocabulary {
   transliteration: string;
   meaning: string;
   word_type: string | null;
-  memory_level: 'Chưa nhớ' | 'Đang nhớ' | 'Đã nhớ' | 'Rất nhớ';
+  memory_level: 'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ';
   study_date: string | null; // YYYY-MM-DD
   last_reviewed_at: string | null; // YYYY-MM-DD
   created_at: string;
@@ -46,9 +46,9 @@ export interface UserVocabStats {
   username: string;
   total: number;
   rat_nho: number;
-  da_nho: number;
-  dang_nho: number;
-  chua_nho: number;
+  nho: number;
+  hoi_nho: number;
+  de_quen: number;
 }
 
 export interface AdminSummary {
@@ -161,18 +161,18 @@ export async function fetchAdminChineseStats() {
         username: `User-${uid.substring(0, 8)}`,
         total: 0,
         rat_nho: 0,
-        da_nho: 0,
-        dang_nho: 0,
-        chua_nho: 0
+        nho: 0,
+        hoi_nho: 0,
+        de_quen: 0
       });
     }
 
     const stat = statsMap.get(uid)!;
     stat.total++;
     if (item.memory_level === 'Rất nhớ') stat.rat_nho++;
-    else if (item.memory_level === 'Đã nhớ') stat.da_nho++;
-    else if (item.memory_level === 'Đang nhớ') stat.dang_nho++;
-    else if (item.memory_level === 'Chưa nhớ') stat.chua_nho++;
+    else if (item.memory_level === 'Nhớ') stat.nho++;
+    else if (item.memory_level === 'Hơi nhớ') stat.hoi_nho++;
+    else if (item.memory_level === 'Dễ quên') stat.de_quen++;
   });
 
   return Array.from(statsMap.values());
@@ -195,18 +195,18 @@ export async function fetchAdminEnglishStats() {
         username: `User-${uid.substring(0, 8)}`,
         total: 0,
         rat_nho: 0,
-        da_nho: 0,
-        dang_nho: 0,
-        chua_nho: 0
+        nho: 0,
+        hoi_nho: 0,
+        de_quen: 0
       });
     }
 
     const stat = statsMap.get(uid)!;
     stat.total++;
     if (item.memory_level === 'Rất nhớ') stat.rat_nho++;
-    else if (item.memory_level === 'Đã nhớ') stat.da_nho++;
-    else if (item.memory_level === 'Đang nhớ') stat.dang_nho++;
-    else if (item.memory_level === 'Chưa nhớ') stat.chua_nho++;
+    else if (item.memory_level === 'Nhớ') stat.nho++;
+    else if (item.memory_level === 'Hơi nhớ') stat.hoi_nho++;
+    else if (item.memory_level === 'Dễ quên') stat.de_quen++;
   });
 
   return Array.from(statsMap.values());
@@ -227,16 +227,16 @@ export async function fetchStats(userId: string | number) {
   const stats = {
     total: data.length,
     rat_nho: 0,
-    da_nho: 0,
-    dang_nho: 0,
-    chua_nho: 0
+    nho: 0,
+    hoi_nho: 0,
+    de_quen: 0
   };
 
   data.forEach(item => {
     if (item.memory_level === 'Rất nhớ') stats.rat_nho++;
-    else if (item.memory_level === 'Đã nhớ') stats.da_nho++;
-    else if (item.memory_level === 'Đang nhớ') stats.dang_nho++;
-    else if (item.memory_level === 'Chưa nhớ') stats.chua_nho++;
+    else if (item.memory_level === 'Nhớ') stats.nho++;
+    else if (item.memory_level === 'Hơi nhớ') stats.hoi_nho++;
+    else if (item.memory_level === 'Dễ quên') stats.de_quen++;
   });
 
   return stats;
@@ -336,16 +336,16 @@ export async function fetchEnglishStats(userId: string | number) {
   const stats = {
     total: data.length,
     rat_nho: 0,
-    da_nho: 0,
-    dang_nho: 0,
-    chua_nho: 0
+    nho: 0,
+    hoi_nho: 0,
+    de_quen: 0
   };
 
   data.forEach(item => {
     if (item.memory_level === 'Rất nhớ') stats.rat_nho++;
-    else if (item.memory_level === 'Đã nhớ') stats.da_nho++;
-    else if (item.memory_level === 'Đang nhớ') stats.dang_nho++;
-    else if (item.memory_level === 'Chưa nhớ') stats.chua_nho++;
+    else if (item.memory_level === 'Nhớ') stats.nho++;
+    else if (item.memory_level === 'Hơi nhớ') stats.hoi_nho++;
+    else if (item.memory_level === 'Dễ quên') stats.de_quen++;
   });
 
   return stats;

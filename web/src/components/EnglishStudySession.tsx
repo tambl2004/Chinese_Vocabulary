@@ -190,25 +190,25 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
             {showAnswer && (
               <div className="w-full grid grid-cols-4 gap-2 animate-in fade-in slide-in-from-bottom-3 duration-300">
                 <button
-                  onClick={() => handleUpdate('Chưa nhớ')}
+                  onClick={() => handleUpdate('Dễ quên')}
                   disabled={isUpdating}
                   className="py-3 px-1.5 bg-status-red-bg border border-red-200 text-status-red-text font-bold text-[11px] rounded-lg hover:shadow-sm transition-all duration-150 hover:scale-[1.01] cursor-pointer"
                 >
-                  Chưa nhớ
+                  Dễ quên
                 </button>
                 <button
-                  onClick={() => handleUpdate('Đang nhớ')}
+                  onClick={() => handleUpdate('Hơi nhớ')}
                   disabled={isUpdating}
                   className="py-3 px-1.5 bg-status-yellow-bg border border-amber-200 text-status-yellow-text font-bold text-[11px] rounded-lg hover:shadow-sm transition-all duration-150 hover:scale-[1.01] cursor-pointer"
                 >
-                  Đang nhớ
+                  Hơi nhớ
                 </button>
                 <button
-                  onClick={() => handleUpdate('Đã nhớ')}
+                  onClick={() => handleUpdate('Nhớ')}
                   disabled={isUpdating}
                   className="py-3 px-1.5 bg-status-green-bg border border-teal-200 text-status-green-text font-bold text-[11px] rounded-lg hover:shadow-sm transition-all duration-150 hover:scale-[1.01] cursor-pointer"
                 >
-                  Đã nhớ
+                  Nhớ
                 </button>
                 <button
                   onClick={() => handleUpdate('Rất nhớ')}

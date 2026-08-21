@@ -20,7 +20,7 @@ export const WordModal: React.FC<WordModalProps> = ({
   const [pinyin, setPinyin] = useState('');
   const [hanViet, setHanViet] = useState('');
   const [meaning, setMeaning] = useState('');
-  const [memoryLevel, setMemoryLevel] = useState<'Chưa nhớ' | 'Đang nhớ' | 'Đã nhớ' | 'Rất nhớ'>('Chưa nhớ');
+  const [memoryLevel, setMemoryLevel] = useState<'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ'>('Dễ quên');
   const [studyDate, setStudyDate] = useState('');
   const [wordType, setWordType] = useState('Danh từ');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -100,7 +100,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       setHanViet('');
       setMeaning('');
       setWordType('Danh từ');
-      setMemoryLevel('Chưa nhớ');
+      setMemoryLevel('Dễ quên');
       setStudyDate(new Date().toISOString().split('T')[0]);
     }
     setError('');
@@ -283,9 +283,9 @@ export const WordModal: React.FC<WordModalProps> = ({
                   onChange={(e) => setMemoryLevel(e.target.value as any)}
                   className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
                 >
-                  <option value="Chưa nhớ">Chưa nhớ</option>
-                  <option value="Đang nhớ">Đang nhớ</option>
-                  <option value="Đã nhớ">Đã nhớ</option>
+                  <option value="Dễ quên">Dễ quên</option>
+                  <option value="Hơi nhớ">Hơi nhớ</option>
+                  <option value="Nhớ">Nhớ</option>
                   <option value="Rất nhớ">Rất nhớ</option>
                 </select>
               </div>

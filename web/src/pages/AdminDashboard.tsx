@@ -205,9 +205,9 @@ export const AdminDashboard: React.FC = () => {
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">ID Người dùng</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Tổng số từ</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Rất nhớ</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Đã nhớ</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Đang nhớ</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Chưa nhớ</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Nhớ</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Hơi nhớ</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Dễ quên</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -224,17 +224,17 @@ export const AdminDashboard: React.FC = () => {
                       </td>
                       <td className="py-3 px-6">
                         <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700">
-                          {stat.da_nho || 0}
+                          {stat.nho || 0}
                         </span>
                       </td>
                       <td className="py-3 px-6">
                         <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">
-                          {stat.dang_nho || 0}
+                          {stat.hoi_nho || 0}
                         </span>
                       </td>
                       <td className="py-3 px-6">
                         <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700">
-                          {stat.chua_nho || 0}
+                          {stat.de_quen || 0}
                         </span>
                       </td>
                     </tr>
@@ -261,9 +261,9 @@ export const AdminDashboard: React.FC = () => {
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">ID Người dùng</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Tổng số từ</th>
                   <th className="py-4 px-6 text-xs font-semibold text-text-muted">Rất nhớ</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Đã nhớ</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Đang nhớ</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Chưa nhớ</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Nhớ</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Hơi nhớ</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-text-muted">Dễ quên</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -280,17 +280,17 @@ export const AdminDashboard: React.FC = () => {
                       </td>
                       <td className="py-3 px-6">
                         <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700">
-                          {stat.da_nho || 0}
+                          {stat.nho || 0}
                         </span>
                       </td>
                       <td className="py-3 px-6">
                         <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">
-                          {stat.dang_nho || 0}
+                          {stat.hoi_nho || 0}
                         </span>
                       </td>
                       <td className="py-3 px-6">
                         <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700">
-                          {stat.chua_nho || 0}
+                          {stat.de_quen || 0}
                         </span>
                       </td>
                     </tr>

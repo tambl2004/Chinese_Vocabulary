@@ -38,26 +38,26 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
             Rất nhớ
           </span>
         );
-      case 'Đã nhớ':
+      case 'Nhớ':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-status-green-text bg-status-green-bg rounded-full border border-teal-200/50">
             <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-            Đã nhớ
+            Nhớ
           </span>
         );
-      case 'Đang nhớ':
+      case 'Hơi nhớ':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-status-yellow-text bg-status-yellow-bg rounded-full border border-amber-200/50">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            Đang nhớ
+            Hơi nhớ
           </span>
         );
-      case 'Chưa nhớ':
+      case 'Dễ quên':
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-status-red-text bg-status-red-bg rounded-full border border-red-200/50">
             <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
-            Chưa nhớ
+            Dễ quên
           </span>
         );
     }

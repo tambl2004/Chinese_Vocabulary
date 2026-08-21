@@ -28,7 +28,7 @@ export const ChinaPage = () => {
   const navigate = useNavigate();
   const todayString = getLocalDateString();
   const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
-  const [stats, setStats] = useState({ total: 0, rat_nho: 0, da_nho: 0, dang_nho: 0, chua_nho: 0 });
+  const [stats, setStats] = useState({ total: 0, rat_nho: 0, nho: 0, hoi_nho: 0, de_quen: 0 });
 
   const [globalSearch, setGlobalSearch] = useState('');
   const [tableSearch, setTableSearch] = useState('');
@@ -233,9 +233,9 @@ export const ChinaPage = () => {
 
     if (option === 'memory') {
       const levelRank: Record<string, number> = {
-        'Chưa nhớ': 1,
-        'Đang nhớ': 2,
-        'Đã nhớ': 3,
+        'Dễ quên': 1,
+        'Hơi nhớ': 2,
+        'Nhớ': 3,
         'Rất nhớ': 4
       };
       listToStudy.sort((a, b) => {
@@ -310,9 +310,9 @@ export const ChinaPage = () => {
         <StatsCard
           total={stats.total}
           ratNho={stats.rat_nho || 0}
-          daNho={stats.da_nho}
-          dangNho={stats.dang_nho}
-          chuaNho={stats.chua_nho}
+          nho={stats.nho}
+          hoiNho={stats.hoi_nho}
+          deQuen={stats.de_quen}
           onStartReview={
             stats.total > 0 ? handleOpenStudyOptions : undefined
           }
@@ -374,9 +374,9 @@ export const ChinaPage = () => {
                 className="px-3 py-2 text-sm text-text-charcoal bg-white border border-slate-200 rounded shadow-xs focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[130px]"
               >
                 <option value="all">Tất cả</option>
-                <option value="Chưa nhớ">Chưa nhớ</option>
-                <option value="Đang nhớ">Đang nhớ</option>
-                <option value="Đã nhớ">Đã nhớ</option>
+                <option value="Dễ quên">Dễ quên</option>
+                <option value="Hơi nhớ">Hơi nhớ</option>
+                <option value="Nhớ">Nhớ</option>
                 <option value="Rất nhớ">Rất nhớ</option>
               </select>
             </div>
