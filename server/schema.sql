@@ -1,0 +1,14 @@
+CREATE DATABASE IF NOT EXISTS hsk_vocab CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE hsk_vocab;
+
+CREATE TABLE IF NOT EXISTS vocabularies (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  chinese VARCHAR(255) NOT NULL,
+  pinyin VARCHAR(255) NOT NULL,
+  han_viet VARCHAR(255) NOT NULL,
+  meaning TEXT NOT NULL,
+  memory_level VARCHAR(50) NOT NULL DEFAULT 'Chưa nhớ', -- 'Chưa nhớ', 'Đang nhớ', 'Đã nhớ'
+  study_date DATE NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
