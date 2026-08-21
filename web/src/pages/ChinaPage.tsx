@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Upload, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   fetchVocabularies,
   fetchStats,
   addVocabulary,
+  addVocabulariesBulk,
   updateVocabulary,
   deleteVocabulary,
   type Vocabulary
@@ -15,6 +16,8 @@ import WordModal from '../components/WordModal';
 import StudySession from '../components/StudySession';
 import ConfirmModal from '../components/ConfirmModal';
 import StudyOptionsModal from '../components/StudyOptionsModal';
+import { lookupChineseWord } from '../utils/dictionary';
+import * as XLSX from 'xlsx';
 
 const getLocalDateString = () => {
   const d = new Date();
@@ -26,6 +29,7 @@ const getLocalDateString = () => {
 
 export const ChinaPage = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const todayString = getLocalDateString();
   const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
   const [stats, setStats] = useState({ total: 0, rat_nho: 0, nho: 0, hoi_nho: 0, de_quen: 0 });
@@ -255,6 +259,101 @@ export const ChinaPage = () => {
     setIsStudyOptionsModalOpen(false);
   };
 
+  const handleTriggerImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rows = XLSX.utils.sheet_to_json<any>(ws);
+
+        if (rows.length === 0) {
+          showToast('File Excel không có dữ liệu!', 'error');
+          return;
+        }
+
+        showToast(`Đang xử lý ${rows.length} hàng...`, 'info');
+
+        const lookupPromises = rows.map(async (row) => {
+          let chineseVal = '';
+          let pinyinVal = '';
+          let hanVietVal = '';
+          let meaningVal = '';
+          let wordTypeVal = '';
+
+          for (const key of Object.keys(row)) {
+            const lowerKey = key.toLowerCase();
+            const val = String(row[key] || '').trim();
+
+            if (lowerKey.includes('trung') || lowerKey.includes('chữ') || lowerKey.includes('chinese') || lowerKey.includes('vocab')) {
+              chineseVal = val;
+            } else if (lowerKey.includes('pinyin') || lowerKey.includes('phiên âm') || lowerKey.includes('phát âm')) {
+              pinyinVal = val;
+            } else if (lowerKey.includes('hán việt') || lowerKey.includes('han viet') || lowerKey.includes('han_viet')) {
+              hanVietVal = val;
+            } else if (lowerKey.includes('nghĩa') || lowerKey.includes('meaning') || lowerKey.includes('dịch') || lowerKey.includes('tiếng việt')) {
+              meaningVal = val;
+            } else if (lowerKey.includes('loại') || lowerKey.includes('type') || lowerKey.includes('word_type')) {
+              wordTypeVal = val;
+            }
+          }
+
+          if (!chineseVal) return null;
+
+          if (!pinyinVal || !hanVietVal || !meaningVal || !wordTypeVal) {
+            try {
+              const lookup = await lookupChineseWord(chineseVal);
+              if (!pinyinVal) pinyinVal = lookup.pinyin;
+              if (!hanVietVal) hanVietVal = lookup.han_viet;
+              if (!meaningVal) meaningVal = lookup.meaning;
+              if (!wordTypeVal && lookup.word_type) wordTypeVal = lookup.word_type;
+            } catch (err) {
+              console.error('Lookup failed for imported word:', chineseVal, err);
+            }
+          }
+
+          if (!wordTypeVal) wordTypeVal = 'Danh từ';
+
+          return {
+            chinese: chineseVal,
+            pinyin: pinyinVal || '---',
+            han_viet: hanVietVal || '---',
+            meaning: meaningVal || '---',
+            word_type: wordTypeVal,
+            memory_level: 'Dễ quên' as const,
+            study_date: getLocalDateString()
+          };
+        });
+
+        const resolvedPayloads = await Promise.all(lookupPromises);
+        const validPayloads = resolvedPayloads.filter((x): x is NonNullable<typeof x> => x !== null);
+
+        if (validPayloads.length > 0) {
+          await addVocabulariesBulk(validPayloads);
+          showToast(`Nhập thành công ${validPayloads.length} từ vựng mới!`, 'success');
+          await loadData();
+        } else {
+          showToast('Không có từ vựng hợp lệ nào để nhập.', 'warning');
+        }
+      } catch (err) {
+        console.error('Error importing Excel:', err);
+        showToast('Có lỗi xảy ra khi nhập file Excel.', 'error');
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     navigate('/login');
@@ -311,6 +410,21 @@ export const ChinaPage = () => {
               <Plus size={14} />
               Thêm từ mới
             </button>
+
+            <button
+              onClick={handleTriggerImport}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
+            >
+              <Upload size={14} />
+              Nhập Excel
+            </button>
+            <input 
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImportExcel}
+              accept=".xlsx, .xls"
+              className="hidden"
+            />
 
             <button
               onClick={handleLogout}

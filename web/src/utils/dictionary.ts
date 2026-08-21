@@ -1,4 +1,7 @@
 import { convertPinyinNumberToAccent } from './pinyinUtils';
+import * as OpenCC from 'opencc-js';
+
+const s2tConverter = OpenCC.Converter({ from: 'cn', to: 'tw' });
 
 // Types
 export interface ChineseMatch {
@@ -6,12 +9,14 @@ export interface ChineseMatch {
   pinyin: string;
   han_viet: string;
   meaning: string;
+  word_type?: string;
 }
 
 export interface EnglishMatch {
   word: string;
   transliteration: string;
   meaning: string;
+  word_type?: string;
   suggestions?: EnglishMatch[];
 }
 
@@ -146,65 +151,90 @@ async function ensureEnglishDictLoaded() {
 export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
   await ensureChineseDictLoaded();
   
-  const pinyinList: string[] = [];
   const hanvietList: string[] = [];
+  const fallbackPinyinList: string[] = [];
+  
+  const traditionalWord = s2tConverter(word);
   
   for (let i = 0; i < word.length; i++) {
     const char = word[i];
-    const match = dictMap.get(char);
+    const tradChar = traditionalWord[i] || char;
+    const match = dictMap.get(tradChar) || dictMap.get(char);
     if (match && match.length > 0) {
       const item = match[0];
       const pinyinAccent = convertPinyinNumberToAccent(item.pinyin);
-      pinyinList.push(pinyinAccent);
+      fallbackPinyinList.push(pinyinAccent);
       
       const hv = item.hanviet.length > 0 ? item.hanviet[0] : '';
       hanvietList.push(hv);
     } else {
-      pinyinList.push(char);
+      fallbackPinyinList.push(char);
       hanvietList.push(char);
     }
   }
   
-  const pinyin = pinyinList.join(' ');
   const han_viet = hanvietList.join(' ');
+  let pinyin = fallbackPinyinList.join(' ');
   let meaning = '';
-  
-  const commonMeanings: Record<string, string> = {
-    '城里': 'trong thành phố',
-    '郊区': 'ngoại ô',
-    '空气': 'không khí',
-    '笔记': 'ghi chép',
-    '拜托': 'nhờ vả',
-    '学习': 'học tập',
-    '汉语': 'tiếng Trung',
-    '词汇': 'từ vựng',
-    '努力': 'nỗ lực, cố gắng',
-    '简单': 'đơn giản',
-    '复杂': 'phức tạp',
-    '感谢': 'cảm ơn',
-    '电脑': 'máy tính',
-    '手机': 'điện thoại di động',
-    '老师': 'thầy cô giáo',
-    '学生': 'học sinh, sinh viên',
-    '学校': 'trường học',
-    '咖啡': 'cà phê',
-    '面包': 'bánh mì',
-    '苹果': 'quả táo',
-    '西瓜': 'dưa hấu',
-    '朋友': 'bạn bè',
-    '时间': 'thời gian',
-    '工作': 'công việc'
-  };
-  
-  if (commonMeanings[word]) {
-    meaning = commonMeanings[word];
+  let word_type = 'Danh từ';
+
+  try {
+    const [viRes, enRes] = await Promise.all([
+      fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&dt=rm&q=${encodeURIComponent(word)}`),
+      fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&dt=bd&q=${encodeURIComponent(word)}`)
+    ]);
+
+    if (viRes.ok) {
+      const viData = await viRes.json();
+      if (viData && viData[0]) {
+        // Meaning is at data[0][0][0]
+        if (viData[0][0] && viData[0][0][0]) {
+          meaning = viData[0][0][0].trim();
+        }
+        // Pinyin is at data[0][1] and index 3
+        if (viData[0][1] && viData[0][1][3]) {
+          pinyin = viData[0][1][3].trim().toLowerCase();
+        }
+      }
+    }
+
+    if (enRes.ok) {
+      const enData = await enRes.json();
+      if (enData && enData[1] && enData[1][0] && enData[1][0][0]) {
+        const enPos = enData[1][0][0].toLowerCase();
+        if (enPos.includes('noun')) {
+          word_type = 'Danh từ';
+        } else if (enPos.includes('verb')) {
+          word_type = 'Động từ';
+        } else if (enPos.includes('adjective')) {
+          word_type = 'Tính từ';
+        } else if (enPos.includes('adverb')) {
+          word_type = 'Phó từ';
+        } else if (enPos.includes('pronoun')) {
+          word_type = 'Đại từ';
+        } else if (enPos.includes('preposition')) {
+          word_type = 'Giới từ';
+        } else if (enPos.includes('conjunction')) {
+          word_type = 'Liên từ';
+        } else if (enPos.includes('interjection')) {
+          word_type = 'Thán từ';
+        } else if (enPos.includes('numeral') || enPos.includes('number') || enPos.includes('cardinal')) {
+          word_type = 'Lượng từ';
+        } else {
+          word_type = 'Khác';
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching online pinyin/meaning/wordtype:', error);
   }
   
   return {
     chinese: word,
     pinyin,
     han_viet,
-    meaning
+    meaning,
+    word_type
   };
 }
 
@@ -236,8 +266,9 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
   // Fallback: fetch online
   let transliteration = '';
   let meaning = '';
+  let word_type = 'Danh từ';
   
-  // 1. Dictionary phonetic
+  // 1. Dictionary phonetic & POS
   try {
     const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(searchWord)}`);
     if (dictRes.ok) {
@@ -248,6 +279,30 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
         if (!transliteration && entry.phonetics) {
           const foundText = entry.phonetics.find((p: any) => p.text && p.text.trim())?.text;
           if (foundText) transliteration = foundText;
+        }
+        if (entry.meanings && entry.meanings.length > 0) {
+          const pos = entry.meanings[0].partOfSpeech?.toLowerCase() || '';
+          if (pos.includes('noun')) {
+            word_type = 'Danh từ';
+          } else if (pos.includes('verb')) {
+            word_type = 'Động từ';
+          } else if (pos.includes('adjective')) {
+            word_type = 'Tính từ';
+          } else if (pos.includes('adverb')) {
+            word_type = 'Phó từ';
+          } else if (pos.includes('pronoun')) {
+            word_type = 'Đại từ';
+          } else if (pos.includes('preposition')) {
+            word_type = 'Giới từ';
+          } else if (pos.includes('conjunction')) {
+            word_type = 'Liên từ';
+          } else if (pos.includes('interjection')) {
+            word_type = 'Thán từ';
+          } else if (pos.includes('numeral') || pos.includes('number') || pos.includes('cardinal')) {
+            word_type = 'Lượng từ';
+          } else {
+            word_type = 'Khác';
+          }
         }
       }
     }
@@ -272,7 +327,8 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
     const dynamicMatch = {
       word: word.trim(),
       transliteration: transliteration || '',
-      meaning: meaning || ''
+      meaning: meaning || '',
+      word_type
     };
     englishDictMap.set(searchWord, dynamicMatch);
     return {
@@ -285,6 +341,7 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
     word,
     transliteration: '',
     meaning: '',
+    word_type: 'Danh từ',
     suggestions
   };
 }

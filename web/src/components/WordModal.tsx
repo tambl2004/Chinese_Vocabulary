@@ -25,8 +25,7 @@ export const WordModal: React.FC<WordModalProps> = ({
   const [wordType, setWordType] = useState('Danh từ');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+
 
   // Auto-fill details using Backend Lookup API
   const autoFillDetails = async (word: string) => {
@@ -41,6 +40,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       if (data.pinyin) setPinyin(data.pinyin);
       if (data.han_viet) setHanViet(data.han_viet);
       if (data.meaning) setMeaning(data.meaning);
+      if (data.word_type) setWordType(data.word_type);
     } catch (err) {
       console.error('Failed to look up word details:', err);
     }
@@ -48,41 +48,9 @@ export const WordModal: React.FC<WordModalProps> = ({
 
   const handleChineseChange = async (val: string) => {
     setChinese(val);
-    
-    // If empty or only Chinese characters, clear suggestions
-    const containsLatin = /[a-zA-Z]/.test(val);
-    if (!containsLatin || !val.trim()) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      
-      if (val.trim() && /[\u4e00-\u9fa5]/.test(val)) {
-        autoFillDetails(val);
-      }
-      return;
+    if (val.trim() && /[\u4e00-\u9fa5]/.test(val)) {
+      autoFillDetails(val);
     }
-
-    // Call Google Input Tools for IME suggestions
-    try {
-      const res = await fetch(
-        `https://inputtools.google.com/request?text=${encodeURIComponent(val)}&itc=zh-t-i0-pinyin&num=8`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data[0] === 'SUCCESS' && data[1]?.[0]?.[1]) {
-          setSuggestions(data[1][0][1]);
-          setShowSuggestions(true);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to get suggestions:', err);
-    }
-  };
-
-  const handleSelectSuggestion = async (candidate: string) => {
-    setChinese(candidate);
-    setSuggestions([]);
-    setShowSuggestions(false);
-    await autoFillDetails(candidate);
   };
 
   useEffect(() => {
@@ -104,8 +72,6 @@ export const WordModal: React.FC<WordModalProps> = ({
       setStudyDate(new Date().toISOString().split('T')[0]);
     }
     setError('');
-    setSuggestions([]);
-    setShowSuggestions(false);
   }, [editingWord, isOpen]);
 
   if (!isOpen) return null;
@@ -178,37 +144,15 @@ export const WordModal: React.FC<WordModalProps> = ({
                 type="text"
                 value={chinese}
                 onChange={(e) => handleChineseChange(e.target.value)}
-                onBlur={() => {
-                  setTimeout(() => {
-                    setShowSuggestions(false);
-                    autoFillDetails(chinese);
-                  }, 250);
-                }}
-                placeholder="Ví dụ: g hoặc 城里"
+                onBlur={() => autoFillDetails(chinese)}
+                placeholder="Ví dụ: 城里"
                 className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded font-chinese"
                 required
                 autoComplete="off"
               />
-              
-              {/* Autocomplete Suggestions Dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto z-50 divide-y divide-slate-100 animate-in fade-in duration-100">
-                  {suggestions.map((cand, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectSuggestion(cand)}
-                      className="w-full text-left px-4 py-2 text-sm text-text-charcoal hover:bg-slate-50 font-chinese transition-colors flex items-center justify-between cursor-pointer"
-                    >
-                      <span className="font-bold text-base">{cand}</span>
-                      <span className="text-xs text-text-muted">Gợi ý từ Pinyin</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1.5fr] gap-3">
               <div>
                 <label htmlFor="pinyin" className="block text-xs font-semibold text-text-muted mb-1.5">
                   Phiên âm (Pinyin) <span className="text-red-500">*</span>
@@ -243,17 +187,14 @@ export const WordModal: React.FC<WordModalProps> = ({
                 <label htmlFor="wordType" className="block text-xs font-semibold text-text-muted mb-1.5">
                   Loại từ
                 </label>
-                <select
+                <input
                   id="wordType"
+                  type="text"
                   value={wordType}
                   onChange={(e) => setWordType(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
-                >
-                  <option value="Danh từ">Danh từ</option>
-                  <option value="Động từ">Động từ</option>
-                  <option value="Tính từ">Tính từ</option>
-                  <option value="Khác">Khác</option>
-                </select>
+                  placeholder="Ví dụ: Danh từ, Động từ..."
+                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded focus:bg-white focus:ring-1 focus:ring-primary"
+                />
               </div>
             </div>
 

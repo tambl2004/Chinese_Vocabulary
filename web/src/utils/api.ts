@@ -429,3 +429,41 @@ export async function deleteEnglishVocabulary(id: number) {
   if (error) throw error;
   return { message: 'Deleted successfully', id };
 }
+
+export async function addVocabulariesBulk(words: Partial<VocabularyInput>[]) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const payload = words.map(word => ({
+    ...word,
+    user_id: user.id,
+    last_reviewed_at: new Date().toISOString().split('T')[0]
+  }));
+
+  const { data, error } = await supabase
+    .from('vocabularies')
+    .insert(payload)
+    .select();
+
+  if (error) throw error;
+  return data as Vocabulary[];
+}
+
+export async function addEnglishVocabulariesBulk(words: Partial<EnglishVocabularyInput>[]) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const payload = words.map(word => ({
+    ...word,
+    user_id: user.id,
+    last_reviewed_at: new Date().toISOString().split('T')[0]
+  }));
+
+  const { data, error } = await supabase
+    .from('english_vocabularies')
+    .insert(payload)
+    .select();
+
+  if (error) throw error;
+  return data as EnglishVocabulary[];
+}

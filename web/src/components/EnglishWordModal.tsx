@@ -34,6 +34,7 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
       const data = await lookupEnglishWord(w);
       if (data.transliteration) setTransliteration(data.transliteration);
       if (data.meaning) setMeaning(data.meaning);
+      if (data.word_type) setWordType(data.word_type);
     } catch (err) {
       console.error('Failed to look up English word details:', err);
     }
@@ -61,6 +62,7 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
       if (data.transliteration && data.word.toLowerCase() === val.trim().toLowerCase()) {
         setTransliteration(data.transliteration);
         setMeaning(data.meaning);
+        if (data.word_type) setWordType(data.word_type);
       }
     } catch (err) {
       console.error('Error fetching suggestions:', err);
@@ -198,7 +200,7 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr] gap-4">
               <div>
                 <label htmlFor="transliteration" className="block text-xs font-semibold text-text-muted mb-1.5">
                   Phiên âm (Transliteration) <span className="text-red-500">*</span>
@@ -218,17 +220,14 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
                 <label htmlFor="wordType" className="block text-xs font-semibold text-text-muted mb-1.5">
                   Loại từ
                 </label>
-                <select
+                <input
                   id="wordType"
+                  type="text"
                   value={wordType}
                   onChange={(e) => setWordType(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded cursor-pointer"
-                >
-                  <option value="Danh từ">Danh từ</option>
-                  <option value="Động từ">Động từ</option>
-                  <option value="Tính từ">Tính từ</option>
-                  <option value="Khác">Khác</option>
-                </select>
+                  placeholder="Ví dụ: Danh từ, Động từ..."
+                  className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded focus:bg-white focus:ring-1 focus:ring-[#0284c7]"
+                />
               </div>
             </div>
 

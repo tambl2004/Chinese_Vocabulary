@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Upload, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   fetchEnglishVocabularies,
   fetchEnglishStats,
   addEnglishVocabulary,
+  addEnglishVocabulariesBulk,
   updateEnglishVocabulary,
   deleteEnglishVocabulary,
   type EnglishVocabulary
@@ -15,6 +16,8 @@ import EnglishWordModal from '../components/EnglishWordModal';
 import EnglishStudySession from '../components/EnglishStudySession';
 import ConfirmModal from '../components/ConfirmModal';
 import StudyOptionsModal from '../components/StudyOptionsModal';
+import { lookupEnglishWord } from '../utils/dictionary';
+import * as XLSX from 'xlsx';
 
 const getLocalDateString = () => {
   const d = new Date();
@@ -26,6 +29,7 @@ const getLocalDateString = () => {
 
 export const EnglishPage = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const todayString = getLocalDateString();
   const [vocabularies, setVocabularies] = useState<EnglishVocabulary[]>([]);
   const [stats, setStats] = useState({ total: 0, rat_nho: 0, nho: 0, hoi_nho: 0, de_quen: 0 });
@@ -254,6 +258,96 @@ export const EnglishPage = () => {
     setIsStudyOptionsModalOpen(false);
   };
 
+  const handleTriggerImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rows = XLSX.utils.sheet_to_json<any>(ws);
+
+        if (rows.length === 0) {
+          showToast('File Excel không có dữ liệu!', 'error');
+          return;
+        }
+
+        showToast(`Đang xử lý ${rows.length} hàng...`, 'info');
+
+        const lookupPromises = rows.map(async (row) => {
+          let wordVal = '';
+          let transliterationVal = '';
+          let meaningVal = '';
+          let wordTypeVal = '';
+
+          for (const key of Object.keys(row)) {
+            const lowerKey = key.toLowerCase();
+            const val = String(row[key] || '').trim();
+
+            if (lowerKey.includes('english') || lowerKey.includes('tiếng anh') || lowerKey.includes('từ') || lowerKey.includes('word') || lowerKey.includes('vocab')) {
+              wordVal = val;
+            } else if (lowerKey.includes('transliteration') || lowerKey.includes('phiên âm') || lowerKey.includes('phát âm') || lowerKey.includes('ipa')) {
+              transliterationVal = val;
+            } else if (lowerKey.includes('nghĩa') || lowerKey.includes('meaning') || lowerKey.includes('dịch') || lowerKey.includes('tiếng việt')) {
+              meaningVal = val;
+            } else if (lowerKey.includes('loại') || lowerKey.includes('type') || lowerKey.includes('word_type')) {
+              wordTypeVal = val;
+            }
+          }
+
+          if (!wordVal) return null;
+
+          if (!transliterationVal || !meaningVal || !wordTypeVal) {
+            try {
+              const lookup = await lookupEnglishWord(wordVal);
+              if (!transliterationVal) transliterationVal = lookup.transliteration;
+              if (!meaningVal) meaningVal = lookup.meaning;
+              if (!wordTypeVal && lookup.word_type) wordTypeVal = lookup.word_type;
+            } catch (err) {
+              console.error('Lookup failed for imported word:', wordVal, err);
+            }
+          }
+
+          if (!wordTypeVal) wordTypeVal = 'Danh từ';
+
+          return {
+            word: wordVal,
+            transliteration: transliterationVal || '---',
+            meaning: meaningVal || '---',
+            word_type: wordTypeVal,
+            memory_level: 'Dễ quên' as const,
+            study_date: getLocalDateString()
+          };
+        });
+
+        const resolvedPayloads = await Promise.all(lookupPromises);
+        const validPayloads = resolvedPayloads.filter((x): x is NonNullable<typeof x> => x !== null);
+
+        if (validPayloads.length > 0) {
+          await addEnglishVocabulariesBulk(validPayloads);
+          showToast(`Nhập thành công ${validPayloads.length} từ vựng mới!`, 'success');
+          await loadData();
+        } else {
+          showToast('Không có từ vựng hợp lệ nào để nhập.', 'warning');
+        }
+      } catch (err) {
+        console.error('Error importing Excel:', err);
+        showToast('Có lỗi xảy ra khi nhập file Excel.', 'error');
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     navigate('/login');
@@ -310,6 +404,21 @@ export const EnglishPage = () => {
               <Plus size={14} />
               Thêm từ mới
             </button>
+
+            <button
+              onClick={handleTriggerImport}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
+            >
+              <Upload size={14} />
+              Nhập Excel
+            </button>
+            <input 
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImportExcel}
+              accept=".xlsx, .xls"
+              className="hidden"
+            />
 
             <button
               onClick={handleLogout}
