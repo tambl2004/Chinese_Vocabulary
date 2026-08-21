@@ -29,61 +29,66 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-card shadow-soft border border-slate-100 p-6 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-4">
-      <div>
-        <h2 className="text-2xl font-bold text-text-charcoal mb-1">Tiến độ học tập</h2>
-        <p className="text-text-muted text-sm font-medium">Hôm nay là {getTodayDateString()}</p>
+    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-5 mb-6">
+      <div className="flex-shrink-0">
+        <h2 className="text-xl font-bold text-text-charcoal mb-0.5">Tiến độ học tập</h2>
+        <p className="text-text-muted text-xs font-medium">Hôm nay là {getTodayDateString()}</p>
       </div>
 
-      <div className="flex flex-wrap md:flex-nowrap items-center gap-4 md:gap-6 w-full md:w-auto divide-x divide-slate-100">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 flex-1 max-w-3xl">
+        {/* Total */}
         <div 
           onClick={() => onStatClick?.('all')} 
-          className={`flex flex-col items-center justify-center min-w-[80px] text-center ${onStatClick ? 'cursor-pointer hover:opacity-80 transition' : ''}`}
+          className={`bg-slate-50 hover:bg-slate-100/80 border border-slate-100 p-3 rounded-xl text-center transition-all col-span-2 sm:col-span-1 flex flex-col justify-center ${onStatClick ? 'cursor-pointer hover:shadow-xs' : ''}`}
         >
-          <span className="text-2xl font-bold text-text-charcoal tracking-tight">{total}</span>
-          <span className="text-xs text-text-muted font-medium mt-1">Tổng số từ</span>
+          <span className="text-xl font-extrabold text-text-charcoal tracking-tight">{total}</span>
+          <span className="text-[11px] text-text-muted font-bold mt-1">Tổng số từ</span>
         </div>
 
+        {/* Rất nhớ */}
         <div 
           onClick={() => onStatClick?.('Rất nhớ')}
-          className={`flex flex-col items-center justify-center min-w-[85px] text-center pl-4 md:pl-6 ${onStatClick ? 'cursor-pointer hover:opacity-80 transition' : ''}`}
+          className={`bg-emerald-50/40 hover:bg-emerald-50 border border-emerald-100/50 p-3 rounded-xl text-center transition-all flex flex-col justify-center ${onStatClick ? 'cursor-pointer hover:shadow-xs' : ''}`}
         >
-          <span className="text-2xl font-bold text-emerald-600 tracking-tight">{ratNho}</span>
-          <span className="text-xs text-text-muted font-medium mt-1 flex items-center gap-1.5 justify-center">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+          <span className="text-xl font-extrabold text-emerald-600 tracking-tight">{ratNho}</span>
+          <span className="text-[11px] text-emerald-700 font-bold mt-1 flex items-center gap-1.5 justify-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
             Rất nhớ
           </span>
         </div>
 
+        {/* Nhớ */}
         <div 
           onClick={() => onStatClick?.('Nhớ')}
-          className={`flex flex-col items-center justify-center min-w-[85px] text-center pl-4 md:pl-6 ${onStatClick ? 'cursor-pointer hover:opacity-80 transition' : ''}`}
+          className={`bg-sky-50/40 hover:bg-sky-50 border border-sky-100/50 p-3 rounded-xl text-center transition-all flex flex-col justify-center ${onStatClick ? 'cursor-pointer hover:shadow-xs' : ''}`}
         >
-          <span className="text-2xl font-bold text-status-green-text tracking-tight">{nho}</span>
-          <span className="text-xs text-text-muted font-medium mt-1 flex items-center gap-1.5 justify-center">
-            <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span>
+          <span className="text-xl font-extrabold text-sky-600 tracking-tight">{nho}</span>
+          <span className="text-[11px] text-sky-700 font-bold mt-1 flex items-center gap-1.5 justify-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 inline-block"></span>
             Nhớ
           </span>
         </div>
 
+        {/* Hơi nhớ */}
         <div 
           onClick={() => onStatClick?.('Hơi nhớ')}
-          className={`flex flex-col items-center justify-center min-w-[85px] text-center pl-4 md:pl-6 ${onStatClick ? 'cursor-pointer hover:opacity-80 transition' : ''}`}
+          className={`bg-amber-50/40 hover:bg-amber-50 border border-amber-100/50 p-3 rounded-xl text-center transition-all flex flex-col justify-center ${onStatClick ? 'cursor-pointer hover:shadow-xs' : ''}`}
         >
-          <span className="text-2xl font-bold text-status-yellow-text tracking-tight">{hoiNho}</span>
-          <span className="text-xs text-text-muted font-medium mt-1 flex items-center gap-1.5 justify-center">
-            <span className="w-2.5 h-2.5 rounded-full bg-status-yellow-text inline-block"></span>
+          <span className="text-xl font-extrabold text-amber-600 tracking-tight">{hoiNho}</span>
+          <span className="text-[11px] text-amber-700 font-bold mt-1 flex items-center gap-1.5 justify-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
             Hơi nhớ
           </span>
         </div>
 
+        {/* Dễ quên */}
         <div 
           onClick={() => onStatClick?.('Dễ quên')}
-          className={`flex flex-col items-center justify-center min-w-[85px] text-center pl-4 md:pl-6 ${onStatClick ? 'cursor-pointer hover:opacity-80 transition' : ''}`}
+          className={`bg-rose-50/40 hover:bg-rose-50 border border-rose-100/50 p-3 rounded-xl text-center transition-all flex flex-col justify-center ${onStatClick ? 'cursor-pointer hover:shadow-xs' : ''}`}
         >
-          <span className="text-2xl font-bold text-status-red-text tracking-tight">{deQuen}</span>
-          <span className="text-xs text-text-muted font-medium mt-1 flex items-center gap-1.5 justify-center">
-            <span className="w-2.5 h-2.5 rounded-full bg-status-red-text inline-block"></span>
+          <span className="text-xl font-extrabold text-rose-600 tracking-tight">{deQuen}</span>
+          <span className="text-[11px] text-rose-700 font-bold mt-1 flex items-center gap-1.5 justify-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block"></span>
             Dễ quên
           </span>
         </div>
@@ -92,7 +97,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
       {onStartReview && total > 0 && (
         <button
           onClick={onStartReview}
-          className="w-full xl:w-auto px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium rounded shadow-sm transition duration-200 text-sm whitespace-nowrap self-stretch xl:self-auto flex justify-center items-center cursor-pointer"
+          className="px-5 py-3 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl shadow-xs hover:shadow transition duration-200 text-xs uppercase tracking-wider whitespace-nowrap flex justify-center items-center cursor-pointer hover:scale-[1.01] active:scale-95"
         >
           Bắt đầu ôn tập
         </button>
@@ -100,4 +105,5 @@ export const StatsCard: React.FC<StatsCardProps> = ({
     </div>
   );
 };
+
 export default StatsCard;

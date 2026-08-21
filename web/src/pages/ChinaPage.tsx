@@ -264,30 +264,49 @@ export const ChinaPage = () => {
     <div className="min-h-screen bg-[#f7f9fb] flex flex-col font-sans">
       {/* Header */}
       <header className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-30">
-        <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          {/* Logo */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/login')}>
-            <h1 className="text-primary font-bold text-lg md:text-xl tracking-tight">
-              Chinese Vocabulary
-            </h1>
+        <div className="max-w-[1200px] mx-auto px-4 py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Left: Logo & Switcher */}
+          <div className="flex items-center justify-between md:justify-start gap-4 w-full md:w-auto">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/china')}>
+              <img src="/images/logo-china.png" alt="Logo" className="w-8 h-8 object-contain" />
+              <h1 className="text-primary font-bold text-base md:text-lg tracking-tight whitespace-nowrap">
+                Học HSK
+              </h1>
+            </div>
+            
+            {/* Language Toggle */}
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
+              <button 
+                onClick={() => navigate('/china')}
+                className="px-3 py-1 rounded bg-white shadow-xs text-primary font-bold transition duration-150"
+              >
+                Tiếng Trung
+              </button>
+              <button 
+                onClick={() => navigate('/english')}
+                className="px-3 py-1 rounded text-slate-500 hover:text-slate-700 font-bold transition duration-150 cursor-pointer"
+              >
+                Tiếng Anh
+              </button>
+            </div>
           </div>
 
-          {/* Search & Actions */}
-          <div className="flex items-center gap-3 flex-1 max-w-lg justify-end">
-            <div className="relative w-full max-w-[240px] md:max-w-[280px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          {/* Right: Search & Actions */}
+          <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:flex-initial max-w-[200px] md:max-w-[240px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input
                 type="text"
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
-                placeholder="Tìm kiếm từ..."
-                className="w-full pl-10 pr-4 py-1.5 text-xs text-text-charcoal bg-slate-50 border border-slate-200 rounded-full transition duration-150 focus:bg-white"
+                placeholder="Tìm từ hệ thống..."
+                className="w-full pl-9 pr-4 py-1.5 text-xs text-text-charcoal bg-slate-50 border border-slate-200 rounded-full transition duration-150 focus:bg-white focus:ring-1 focus:ring-primary"
               />
             </div>
 
             <button
               onClick={handleOpenAddModal}
-              className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
             >
               <Plus size={14} />
               Thêm từ mới
@@ -296,9 +315,9 @@ export const ChinaPage = () => {
             <button
               onClick={handleLogout}
               title="Đăng xuất"
-              className="w-8 h-8 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 hover:bg-rose-100 hover:text-rose-700 cursor-pointer transition"
+              className="w-8 h-8 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 hover:bg-rose-100 hover:text-rose-700 cursor-pointer transition flex-shrink-0 active:scale-95"
             >
-              <LogOut size={16} />
+              <LogOut size={14} />
             </button>
           </div>
         </div>
