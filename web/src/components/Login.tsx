@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Lock, User, AlertCircle } from 'lucide-react';
 import { login } from '../utils/api';
 
 export const Login: React.FC = () => {
@@ -10,7 +10,7 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (targetPath: '/china' | '/english' | '/admin') => {
+  const handleLogin = async (targetPath: '/china' | '/english') => {
     if (!username.trim() || !password.trim()) {
       setError('Vui lòng điền đầy đủ tên đăng nhập và mật khẩu.');
       return;
@@ -22,27 +22,8 @@ export const Login: React.FC = () => {
       const data = await login(username.trim(), password.trim());
 
       if (data.success) {
-        const user = data.user;
-
-        if (targetPath === '/admin') {
-          // Admin Login flow
-          if (user.role === 'admin') {
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            navigate('/admin');
-          } else {
-            setError('Tài khoản không có quyền truy cập trang quản trị.');
-          }
-        } else {
-          // User Login flow
-          if (user.role === 'user') {
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            navigate(targetPath);
-          } else if (user.role === 'admin') {
-            setError('Tài khoản Admin vui lòng đăng nhập qua nút "Đăng nhập Admin".');
-          } else {
-            setError('Tài khoản không có quyền truy cập.');
-          }
-        }
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        navigate(targetPath);
       }
     } catch (err: any) {
       setError(err.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
@@ -141,26 +122,6 @@ export const Login: React.FC = () => {
             <span className="text-[10px] opacity-80 font-normal">Chuyển sang /english</span>
           </button>
         </div>
-
-        {/* Admin Login Divider and Button */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center" aria-hidden="true">
-            <div className="w-full border-t border-slate-200"></div>
-          </div>
-          <div className="relative flex justify-center text-xs font-semibold uppercase">
-            <span className="bg-white px-2 text-text-muted">Hoặc</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          disabled={isLoading}
-          onClick={() => handleLogin('/admin')}
-          className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-xs font-bold rounded shadow-sm hover:shadow transition duration-200 flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <ShieldAlert size={16} />
-          <span>Đăng nhập Admin</span>
-        </button>
       </div>
     </div>
   );
