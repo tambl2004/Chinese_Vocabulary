@@ -66,7 +66,7 @@ export const EnglishVocabularyTable: React.FC<EnglishVocabularyTableProps> = ({
   return (
     <div className="bg-white rounded-card shadow-soft border border-slate-100 overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full min-w-[800px] text-left border-collapse">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
               <th className="py-4 px-6 text-xs font-semibold text-text-muted w-16">#</th>

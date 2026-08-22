@@ -453,9 +453,9 @@ export const ChinaPage = () => {
         />
 
         {/* Filters and Controls */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           {/* Table local filter */}
-          <div className="relative w-full md:max-w-xs">
+          <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
@@ -467,7 +467,7 @@ export const ChinaPage = () => {
           </div>
 
           {/* Date Navigation & Memory Filter */}
-          <div className="flex flex-col md:flex-row items-center gap-4 self-stretch md:self-auto justify-end">
+          <div className="flex flex-row flex-wrap items-center gap-3 self-stretch sm:self-auto justify-start sm:justify-end">
             
             {/* Date Nav */}
             <div className="flex items-center bg-white border border-slate-200 rounded shadow-xs p-1">
