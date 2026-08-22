@@ -357,7 +357,7 @@ export const EnglishPage = () => {
     <div className="min-h-screen bg-[#f7f9fb] flex flex-col font-sans">
       {/* Header */}
       <header className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-30">
-        <div className="max-w-[1200px] mx-auto px-4 py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="max-w-[1200px] mx-auto px-safe py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Left: Logo & Switcher */}
           <div className="flex items-center justify-between md:justify-start gap-4 w-full md:w-auto">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/english')}>
@@ -432,7 +432,7 @@ export const EnglishPage = () => {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 py-8 animate-in fade-in duration-300">
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-safe py-8 animate-in fade-in duration-300">
         {/* Progress Stats Card */}
         <StatsCard
           total={stats.total}

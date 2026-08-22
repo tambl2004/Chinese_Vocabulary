@@ -29,6 +29,42 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
     }
   };
 
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      if (currentPage > 3) {
+        pages.push('...');
+      }
+      
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      
+      for (let i = start; i <= end; i++) {
+        if (!pages.includes(i)) {
+          pages.push(i);
+        }
+      }
+      
+      if (currentPage < totalPages - 2) {
+        pages.push('...');
+      }
+      
+      if (!pages.includes(totalPages)) {
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
   const getStatusBadge = (level: Vocabulary['memory_level']) => {
     switch (level) {
       case 'Rất nhớ':
@@ -69,14 +105,14 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
         <table className="w-full min-w-[800px] text-left border-collapse">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted w-16">#</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">中文</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Pinyin</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Hán Việt</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Loại từ</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Nghĩa</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted">Mức nhớ</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted text-right">Thao tác</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted w-16 whitespace-nowrap">#</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">中文</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Pinyin</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Hán Việt</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Loại từ</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Nghĩa</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Mức nhớ</th>
+              <th className="py-4 px-6 text-xs font-semibold text-text-muted text-right whitespace-nowrap">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -86,30 +122,30 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
                   key={word.id}
                   className="hover:bg-slate-50 transition-colors duration-150 group"
                 >
-                  <td className="py-2 px-6 text-sm text-text-muted">
+                  <td className="py-2 px-6 text-sm text-text-muted whitespace-nowrap">
                     {startIndex + index + 1}
                   </td>
-                  <td className="py-2 px-6 text-xl font-chinese font-bold text-text-charcoal tracking-wide">
+                  <td className="py-2 px-6 text-xl font-chinese font-bold text-text-charcoal tracking-wide whitespace-nowrap">
                     {word.chinese}
                   </td>
-                  <td className="py-2 px-6 text-sm text-text-charcoal font-medium">
+                  <td className="py-2 px-6 text-sm text-text-charcoal font-medium whitespace-nowrap">
                     {word.pinyin}
                   </td>
-                  <td className="py-2 px-6 text-sm text-text-muted">
+                  <td className="py-2 px-6 text-sm text-text-muted whitespace-nowrap">
                     {word.han_viet}
                   </td>
-                  <td className="py-2 px-6 text-xs font-semibold">
+                  <td className="py-2 px-6 text-xs font-semibold whitespace-nowrap">
                     <span className="inline-flex px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                       {word.word_type || 'Danh từ'}
                     </span>
                   </td>
-                  <td className="py-2 px-6 text-sm text-text-charcoal">
+                  <td className="py-2 px-6 text-sm text-text-charcoal min-w-[150px]">
                     {word.meaning}
                   </td>
-                  <td className="py-2 px-6">
+                  <td className="py-2 px-6 whitespace-nowrap">
                     {getStatusBadge(word.memory_level)}
                   </td>
-                  <td className="py-2 px-6 text-right">
+                  <td className="py-2 px-6 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => speakChinese(word.chinese)}
@@ -189,18 +225,31 @@ export const VocabularyTable: React.FC<VocabularyTableProps> = ({
                 <ChevronLeft size={16} />
               </button>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded transition ${currentPage === page
-                    ? 'bg-primary text-white'
-                    : 'text-text-muted hover:bg-slate-100 hover:text-text-charcoal'
-                    }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {getPageNumbers().map((page, i) => {
+                if (page === '...') {
+                  return (
+                    <span
+                      key={`ellipsis-${i}`}
+                      className="px-2 py-1 text-xs font-semibold text-text-muted select-none"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+                
+                return (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page as number)}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded transition ${currentPage === page
+                      ? 'bg-primary text-white'
+                      : 'text-text-muted hover:bg-slate-100 hover:text-text-charcoal'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
 
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
