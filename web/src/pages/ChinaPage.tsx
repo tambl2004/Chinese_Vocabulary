@@ -449,7 +449,10 @@ export const ChinaPage = () => {
           onStartReview={
             stats.total > 0 ? handleOpenStudyOptions : undefined
           }
-          onStatClick={setSelectedMemoryLevel}
+          onStatClick={(level) => {
+            setSelectedMemoryLevel(level);
+            setSelectedDate('all');
+          }}
         />
 
         {/* Filters and Controls */}
