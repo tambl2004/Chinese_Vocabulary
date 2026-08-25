@@ -11,6 +11,7 @@ export interface Vocabulary {
   memory_level: 'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ';
   study_date: string | null; // YYYY-MM-DD
   last_reviewed_at: string | null; // YYYY-MM-DD
+  example?: { sentence: string; translation: string; pinyin?: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +28,7 @@ export interface EnglishVocabulary {
   memory_level: 'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ';
   study_date: string | null; // YYYY-MM-DD
   last_reviewed_at: string | null; // YYYY-MM-DD
+  example?: { sentence: string; translation: string } | null;
   created_at: string;
   updated_at: string;
 }

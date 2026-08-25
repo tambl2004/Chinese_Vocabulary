@@ -208,6 +208,18 @@ export const EnglishPage = () => {
     }
   };
 
+  const handleUpdateExample = async (id: number, example: any) => {
+    try {
+      await updateEnglishVocabulary(id, { example });
+      // Refresh local data to keep everything sync
+      await loadData();
+    } catch (error) {
+      showToast('Lưu câu ví dụ thất bại!', 'error');
+      console.error('Error updating word example:', error);
+      throw error;
+    }
+  };
+
   const handleOpenStudyOptions = () => {
     setIsStudyOptionsModalOpen(true);
   };
@@ -533,6 +545,7 @@ export const EnglishPage = () => {
         <EnglishStudySession
           vocabularies={studyVocabularies}
           onUpdateLevel={handleUpdateLevel}
+          onUpdateExample={handleUpdateExample}
           onClose={() => setIsStudyMode(false)}
         />
       )}

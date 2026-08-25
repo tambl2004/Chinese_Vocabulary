@@ -475,3 +475,180 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
     suggestions
   };
 }
+
+export interface TatoebaExample {
+  sentence: string;
+  translation: string;
+  pinyin?: string;
+}
+
+export async function fetchGeminiExample(
+  word: string,
+  meaning: string,
+  wordType: string,
+  lang: 'cmn' | 'eng'
+): Promise<TatoebaExample> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      'Không tìm thấy câu ví dụ nào trong kho dữ liệu Tatoeba. (Bạn có thể cấu hình khóa VITE_GEMINI_API_KEY trong file web/.env.local để tự động sinh câu ví dụ bằng AI).'
+    );
+  }
+
+  const isChinese = lang === 'cmn';
+  const prompt = isChinese
+    ? `Generate a simple, natural example sentence for the Chinese word '${word}' (meaning: ${meaning}, word type: ${wordType || 'danh từ'}). Provide your response as a JSON object with exactly three keys: 'sentence' (the Chinese sentence), 'translation' (natural translation in Vietnamese), and 'pinyin' (pinyin for the Chinese sentence with proper tones). Do not return any other text, only the JSON.`
+    : `Generate a simple, natural example sentence for the English word '${word}' (meaning: ${meaning}, word type: ${wordType || 'danh từ'}). Provide your response as a JSON object with exactly two keys: 'sentence' (the English sentence) and 'translation' (natural translation in Vietnamese). Do not return any other text, only the JSON.`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: prompt }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json'
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Lỗi kết nối với Gemini API: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Gemini không phản hồi dữ liệu hợp lệ.');
+  }
+
+  const parsed = JSON.parse(text);
+  if (!parsed.sentence || !parsed.translation) {
+    throw new Error('Dữ liệu ví dụ sinh bởi AI không hợp lệ.');
+  }
+
+  return {
+    sentence: parsed.sentence,
+    translation: parsed.translation,
+    pinyin: parsed.pinyin || undefined
+  };
+}
+
+export async function fetchTatoebaExample(
+  word: string, 
+  lang: 'cmn' | 'eng',
+  meaning: string = '',
+  wordType: string = ''
+): Promise<TatoebaExample> {
+  const cleanWord = word.trim();
+  
+  // 1. Try to find a sentence with direct Vietnamese translation in Tatoeba
+  const urlWithVietnamese = `https://api.tatoeba.org/v1/sentences?q=${encodeURIComponent(cleanWord)}&lang=${lang}&trans:lang=vie&sort=relevance&limit=3`;
+  
+  try {
+    const response = await fetch(urlWithVietnamese);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.data && data.data.length > 0) {
+        // Randomize among returned results
+        const randomIndex = Math.floor(Math.random() * data.data.length);
+        const selectedMatch = data.data[randomIndex];
+        const sentence = selectedMatch.text;
+        const translationObj = selectedMatch.translations?.find((t: any) => t.lang === 'vie') || selectedMatch.translations?.[0];
+        
+        if (translationObj) {
+          const translation = translationObj.text;
+          let pinyin = '';
+          if (lang === 'cmn') {
+            try {
+              const translateUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&dt=rm&q=${encodeURIComponent(sentence)}`;
+              const transRes = await fetch(translateUrl);
+              if (transRes.ok) {
+                const transData = await transRes.json();
+                if (transData && transData[0] && transData[0][1] && transData[0][1][3]) {
+                  pinyin = transData[0][1][3].trim();
+                }
+              }
+            } catch (err) {
+              console.error('Failed to translate sentence to pinyin:', err);
+            }
+          }
+          return { sentence, translation, pinyin: pinyin || undefined };
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching direct Vietnamese example from Tatoeba:', err);
+  }
+
+  // 2. Fallback: Search for any sentence in Tatoeba (even without direct Vietnamese translation)
+  // and translate it to Vietnamese on the fly!
+  try {
+    const fallbackUrl = `https://api.tatoeba.org/v1/sentences?q=${encodeURIComponent(cleanWord)}&lang=${lang}&sort=relevance&limit=3`;
+    const response = await fetch(fallbackUrl);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.data && data.data.length > 0) {
+        // Randomize fallback results
+        const randomIndex = Math.floor(Math.random() * data.data.length);
+        const selectedMatch = data.data[randomIndex];
+        const sentence = selectedMatch.text;
+
+        // Translate the sentence using Google Translate
+        try {
+          const sl = lang === 'cmn' ? 'zh-CN' : 'en';
+          const translateUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=vi&dt=t&dt=rm&q=${encodeURIComponent(sentence)}`;
+          const transRes = await fetch(translateUrl);
+          if (transRes.ok) {
+            const transData = await transRes.json();
+            let translation = '';
+            let pinyin = '';
+
+            if (transData && transData[0]) {
+              if (transData[0][0] && transData[0][0][0]) {
+                translation = transData[0][0][0].trim();
+              }
+              if (lang === 'cmn' && transData[0][1] && transData[0][1][3]) {
+                pinyin = transData[0][1][3].trim();
+              }
+            }
+
+            if (translation) {
+              return {
+                sentence,
+                translation,
+                pinyin: pinyin || undefined
+              };
+            }
+          }
+        } catch (err) {
+          console.error('Failed to translate fallback sentence:', err);
+          // If translation fails, we check if there is an English translation in Tatoeba that we can use
+          const enTrans = selectedMatch.translations?.find((t: any) => t.lang === 'eng');
+          if (enTrans) {
+            return {
+              sentence,
+              translation: `(Dịch tiếng Anh): ${enTrans.text}`
+            };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed fallback Tatoeba flow:', err);
+  }
+
+  // 3. Last fallback: Try generating the example using Gemini API
+  return fetchGeminiExample(word, meaning, wordType, lang);
+}
+
