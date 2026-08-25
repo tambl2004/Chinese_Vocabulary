@@ -195,11 +195,9 @@ export const EnglishPage = () => {
 
   const handleUpdateLevel = async (id: number, level: EnglishVocabulary['memory_level']) => {
     try {
-      // Update memory level and set study date to today
-      const today = getLocalDateString();
+      // Update memory level only (original study date is preserved)
       await updateEnglishVocabulary(id, {
-        memory_level: level,
-        study_date: today
+        memory_level: level
       });
       // Refresh local data to keep everything sync
       await loadData();
