@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Vocabulary, VocabularyInput } from '../utils/api';
-import { lookupChineseWord } from '../utils/dictionary';
+import { lookupChineseWord, refineChineseWordWithGemini } from '../utils/dictionary';
 
 interface WordModalProps {
   isOpen: boolean;
@@ -24,7 +24,9 @@ export const WordModal: React.FC<WordModalProps> = ({
   const [studyDate, setStudyDate] = useState('');
   const [wordType, setWordType] = useState('Danh từ');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
   const [error, setError] = useState('');
+  const [alternatives, setAlternatives] = useState<string[]>([]);
 
 
   // Auto-fill details using Backend Lookup API
@@ -41,6 +43,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       if (data.han_viet) setHanViet(data.han_viet);
       if (data.meaning) setMeaning(data.meaning);
       if (data.word_type) setWordType(data.word_type);
+      if (data.alternatives) setAlternatives(data.alternatives);
     } catch (err) {
       console.error('Failed to look up word details:', err);
     }
@@ -48,8 +51,26 @@ export const WordModal: React.FC<WordModalProps> = ({
 
   const handleChineseChange = async (val: string) => {
     setChinese(val);
+    setAlternatives([]);
     if (val.trim() && /[\u4e00-\u9fa5]/.test(val)) {
       autoFillDetails(val);
+    }
+  };
+
+  const handleGeminiRefine = async () => {
+    if (!chinese.trim()) return;
+    try {
+      setIsRefining(true);
+      setError('');
+      const refined = await refineChineseWordWithGemini(chinese.trim(), hanViet.trim());
+      if (refined.pinyin) setPinyin(refined.pinyin);
+      if (refined.han_viet) setHanViet(refined.han_viet);
+      if (refined.meaning) setMeaning(refined.meaning);
+      if (refined.word_type) setWordType(refined.word_type);
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi sửa lỗi bằng AI.');
+    } finally {
+      setIsRefining(false);
     }
   };
 
@@ -62,6 +83,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       setWordType(editingWord.word_type || 'Danh từ');
       setMemoryLevel(editingWord.memory_level);
       setStudyDate(editingWord.study_date || new Date().toISOString().split('T')[0]);
+      setAlternatives([]);
     } else {
       setChinese('');
       setPinyin('');
@@ -70,6 +92,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       setWordType('Danh từ');
       setMemoryLevel('Dễ quên');
       setStudyDate(new Date().toISOString().split('T')[0]);
+      setAlternatives([]);
     }
     setError('');
   }, [editingWord, isOpen]);
@@ -211,6 +234,26 @@ export const WordModal: React.FC<WordModalProps> = ({
                 className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
                 required
               />
+              {/* Alternatives Suggestions */}
+              {alternatives.length > 1 && (
+                <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[10px] font-semibold text-slate-400">Gợi ý từ Google:</span>
+                  {alternatives.map((alt) => (
+                    <button
+                      key={alt}
+                      type="button"
+                      onClick={() => setMeaning(alt)}
+                      className={`px-2.5 py-0.5 text-[11px] font-medium rounded-full border transition duration-150 ${
+                        meaning === alt
+                          ? 'bg-primary/10 border-primary/30 text-primary'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+                      }`}
+                    >
+                      {alt}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -247,22 +290,36 @@ export const WordModal: React.FC<WordModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-5 py-2 text-sm font-semibold text-text-muted hover:text-text-charcoal hover:bg-slate-50 rounded transition duration-200"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded shadow-sm transition duration-200 flex items-center justify-center min-w-[80px]"
-            >
-              {isSubmitting ? 'Đang lưu...' : 'Lưu'}
-            </button>
+          <div className="flex items-center justify-between mt-8 pt-4 border-t border-slate-100">
+            <div>
+              {chinese.trim() && (
+                <button
+                  type="button"
+                  onClick={handleGeminiRefine}
+                  disabled={isRefining || isSubmitting}
+                  className="px-4 py-2 text-xs font-semibold text-primary hover:text-white border border-primary hover:bg-primary rounded transition duration-200 flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {isRefining ? 'Đang sửa lỗi...' : 'Sửa lỗi bằng AI'}
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting || isRefining}
+                className="px-5 py-2 text-sm font-semibold text-text-muted hover:text-text-charcoal hover:bg-slate-50 rounded transition duration-200"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || isRefining}
+                className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded shadow-sm transition duration-200 flex items-center justify-center min-w-[80px]"
+              >
+                {isSubmitting ? 'Đang lưu...' : 'Lưu'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

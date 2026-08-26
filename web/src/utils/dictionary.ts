@@ -10,6 +10,7 @@ export interface ChineseMatch {
   han_viet: string;
   meaning: string;
   word_type?: string;
+  alternatives?: string[];
 }
 
 export interface EnglishMatch {
@@ -68,9 +69,13 @@ async function ensureChineseDictLoaded() {
   
   isChineseDictLoading = true;
   try {
-    const response = await fetch('/data/hanviet.csv');
+    const baseUrl = import.meta.env.BASE_URL || '/';
+    const response = await fetch(`${baseUrl}data/hanviet.csv`);
     if (!response.ok) throw new Error('Failed to load hanviet.csv');
     const content = await response.text();
+    if (!content.trim().startsWith('char,hanviet,pinyin')) {
+      throw new Error('Invalid CSV header or file format');
+    }
     const lines = content.split(/\r?\n/);
     
     for (let i = 1; i < lines.length; i++) {
@@ -116,9 +121,13 @@ async function ensureEnglishDictLoaded() {
   
   isEnglishDictLoading = true;
   try {
-    const response = await fetch('/data/english.csv');
+    const baseUrl = import.meta.env.BASE_URL || '/';
+    const response = await fetch(`${baseUrl}data/english.csv`);
     if (!response.ok) throw new Error('Failed to load english.csv');
     const content = await response.text();
+    if (!content.trim().startsWith('word,transliteration,meaning')) {
+      throw new Error('Invalid CSV header or file format');
+    }
     const lines = content.split(/\r?\n/);
     
     for (let i = 1; i < lines.length; i++) {
@@ -177,10 +186,11 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
   let pinyin = fallbackPinyinList.join(' ');
   let meaning = '';
   let word_type = 'Danh từ';
+  const alternatives: string[] = [];
 
   try {
     const [viRes, enRes] = await Promise.all([
-      fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&dt=rm&q=${encodeURIComponent(word)}`),
+      fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&dt=at&dt=rm&q=${encodeURIComponent(word)}`),
       fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&hl=en&dt=bd&q=${encodeURIComponent(word)}`)
     ]);
 
@@ -194,6 +204,19 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
         // Pinyin is at data[0][1] and index 3
         if (viData[0][1] && viData[0][1][3]) {
           pinyin = viData[0][1][3].trim().toLowerCase();
+        }
+      }
+
+      // Parse alternative translations
+      if (viData && viData[5] && viData[5][0] && viData[5][0][2]) {
+        const list = viData[5][0][2];
+        for (const item of list) {
+          if (item && item[0]) {
+            const alt = item[0].trim();
+            if (alt && !alternatives.includes(alt)) {
+              alternatives.push(alt);
+            }
+          }
         }
       }
     }
@@ -364,7 +387,8 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
     pinyin,
     han_viet,
     meaning,
-    word_type
+    word_type,
+    alternatives: alternatives.length > 0 ? alternatives : undefined
   };
 }
 
@@ -650,5 +674,68 @@ export async function fetchTatoebaExample(
 
   // 3. Last fallback: Try generating the example using Gemini API
   return fetchGeminiExample(word, meaning, wordType, lang);
+}
+
+export interface ChineseRefineResult {
+  pinyin: string;
+  han_viet: string;
+  meaning: string;
+  word_type: string;
+}
+
+export async function refineChineseWordWithGemini(
+  word: string,
+  currentHanViet: string
+): Promise<ChineseRefineResult> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Chưa cấu hình VITE_GEMINI_API_KEY trong file .env.local');
+  }
+
+  const prompt = `Bạn là chuyên gia ngôn ngữ Trung - Việt. Hãy sửa lỗi dịch thuật cho từ Chữ Hán: "${word}" (Hán Việt hiện tại: "${currentHanViet}").
+Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON với đúng 4 thuộc tính sau:
+- "pinyin": Phiên âm pinyin chuẩn có dấu thanh (ví dụ: "shī gǔ" hoặc "xiǎo niú dú", chú ý viết rời các từ nếu là từ ghép).
+- "han_viet": Âm Hán Việt chuẩn viết thường (ví dụ: "thi cốt" hoặc "tiểu ngưu độc", chú ý viết rời các từ).
+- "meaning": Nghĩa tiếng Việt chuẩn, tự nhiên nhất (ví dụ: "hài cốt, xương" hoặc "bê con").
+- "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v.).
+
+Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất kỳ văn bản nào khác.`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json'
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Lỗi kết nối với Gemini API: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Gemini không phản hồi dữ liệu hợp lệ.');
+  }
+
+  const parsed = JSON.parse(text);
+  if (!parsed.pinyin || !parsed.han_viet || !parsed.meaning) {
+    throw new Error('Dữ liệu dịch phản hồi bởi AI không hợp lệ.');
+  }
+
+  return {
+    pinyin: parsed.pinyin.trim(),
+    han_viet: parsed.han_viet.trim(),
+    meaning: parsed.meaning.trim(),
+    word_type: parsed.word_type ? parsed.word_type.trim() : 'Danh từ'
+  };
 }
 
