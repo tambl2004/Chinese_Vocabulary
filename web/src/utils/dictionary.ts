@@ -194,9 +194,9 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
 Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON với đúng các thuộc tính sau:
 - "pinyin": Phiên âm pinyin chuẩn có dấu thanh (ví dụ: "shī gǔ" hoặc "xiǎo niú dú", chú ý viết rời các từ nếu là từ ghép).
 - "han_viet": Âm Hán Việt chuẩn viết thường (ví dụ: "thi cốt" hoặc "tiểu ngưu độc", chú ý viết rời các từ).
-- "meaning": Nghĩa tiếng Việt chuẩn, tự nhiên nhất (ví dụ: "hài cốt, xương" hoặc "bê con").
-- "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v.).
-- "alternatives": Mảng gồm 2-3 nghĩa tiếng Việt gợi ý khác hoặc từ đồng nghĩa của nghĩa tiếng Việt đó.
+- "meaning": Nghĩa tiếng Việt chính chuẩn, ngắn gọn và tự nhiên nhất (ví dụ: "hài cốt" hoặc "bê con").
+- "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v. Nếu từ đóng vai trò của nhiều loại từ, hãy liệt kê chúng ngăn cách bằng dấu gạch chéo "/", ví dụ: "Tính từ/Danh từ" hoặc "Động từ/Danh từ").
+- "alternatives": Mảng gồm 2-3 nghĩa tiếng Việt khác của từ đó (các nét nghĩa khác nhau của từ, viết ngắn gọn và sát nghĩa nhất, ví dụ đối với từ "临" thì alternatives là ["sắp sửa", "đến, tới"]).
 
 Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất kỳ văn bản nào khác.`;
 
@@ -821,7 +821,7 @@ Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON 
 - "pinyin": Phiên âm pinyin chuẩn có dấu thanh (ví dụ: "shī gǔ" hoặc "xiǎo niú dú", chú ý viết rời các từ nếu là từ ghép).
 - "han_viet": Âm Hán Việt chuẩn viết thường (ví dụ: "thi cốt" hoặc "tiểu ngưu độc", chú ý viết rời các từ).
 - "meaning": Nghĩa tiếng Việt chuẩn, tự nhiên nhất (ví dụ: "hài cốt, xương" hoặc "bê con").
-- "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v.).
+- "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v. Nếu từ đóng vai trò của nhiều loại từ, hãy liệt kê chúng ngăn cách bằng dấu gạch chéo "/", ví dụ: "Tính từ/Danh từ" hoặc "Động từ/Danh từ").
 
 Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất kỳ văn bản nào khác.`;
 
