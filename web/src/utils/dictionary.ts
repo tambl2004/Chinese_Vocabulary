@@ -189,12 +189,12 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
   const alternatives: string[] = [];
 
   try {
-    const [viRes, enRes] = await Promise.all([
-      fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&dt=at&dt=rm&q=${encodeURIComponent(word)}`),
-      fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&hl=en&dt=bd&q=${encodeURIComponent(word)}`)
-    ]);
+    const viResPromise = fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&dt=at&dt=rm&q=${encodeURIComponent(word)}`).catch(() => null);
+    const enResPromise = fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&hl=en&dt=bd&q=${encodeURIComponent(word)}`).catch(() => null);
 
-    if (viRes.ok) {
+    const [viRes, enRes] = await Promise.all([viResPromise, enResPromise]);
+
+    if (viRes && viRes.ok) {
       const viData = await viRes.json();
       if (viData && viData[0]) {
         // Meaning is at data[0][0][0]
@@ -221,9 +221,27 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
       }
     }
 
+    if (!meaning) {
+      try {
+        const myMemoryRes = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=zh|vi`).catch(() => null);
+        if (myMemoryRes && myMemoryRes.ok) {
+          const myMemoryData = await myMemoryRes.json();
+          const translatedText = myMemoryData?.responseData?.translatedText?.trim();
+          if (translatedText && !translatedText.includes('MYMEMORY WARNING')) {
+            meaning = translatedText;
+            if (!alternatives.includes(meaning)) {
+              alternatives.unshift(meaning);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to translate using MyMemory fallback:', err);
+      }
+    }
+
     const posList: string[] = [];
 
-    if (enRes.ok) {
+    if (enRes && enRes.ok) {
       const enData = await enRes.json();
       if (enData && enData[1]) {
         for (const item of enData[1]) {
@@ -273,7 +291,8 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
         'mơ', 'hy', 'tham', 'tổ',
         'tập', 'bắt', 'kết', 'hoàn', 'tìm', 'tránh', 'chờ', 'hẹn', 'phản', 'đồng', 'chấp', 'từ', 'ngăn', 
         'cấm', 'đề', 'khuyên', 'nhắc', 'chú', 'quan', 'chăm', 'giải', 'xử', 'thực', 'áp', 'tạo', 'gây', 
-        'dẫn', 'thay', 'biến', 'tăng', 'giảm', 'xuất'
+        'dẫn', 'thay', 'biến', 'tăng', 'giảm', 'xuất', 'mỉm', 'cố', 'thể', 'nghiên', 'sản', 'phục', 
+        'tiếp', 'thuộc', 'chống', 'đối', 'hướng', 'phân', 'giới', 'chuẩn', 'cung', 'đáp', 'báo', 'kiểm'
       ]);
 
       const adjStarters = new Set([
@@ -281,8 +300,9 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
         'nhanh', 'chậm', 'tốt', 'tồi', 'giàu', 'nghèo', 'khỏe', 'yếu', 'thông', 'minh', 'ngu', 'dốt', 'chăm',
         'lười', 'sạch', 'bẩn', 'thơm', 'thối', 'ngọt', 'chua', 'cay', 'mặn', 'đắng', 'nhạt', 'khô', 'ướt',
         'đầy', 'trống', 'nặng', 'nhẹ', 'sáng', 'tối', 'mới', 'cũ', 'trẻ', 'già', 'đắt', 'rẻ', 'dễ', 'khó',
-        'đúng', 'sai', 'gần', 'xa', 'sâu', 'nông', 'rộng', 'hẹp', 'vui', 'buồn', 'vất', 'khó', 'khổ',
-        'sướng', 'khác', 'giống', 'quen', 'lạ', 'nguy', 'hiểm', 'an', 'toàn', 'tự', 'do', 'hạnh', 'phúc'
+        'đúng', 'sai', 'gần', 'xa', 'sâu', 'nông', 'rộng', 'hẹp', 'vui', 'buồn', 'vất', 'khổ',
+        'sướng', 'khác', 'giống', 'quen', 'lạ', 'nguy', 'hiểm', 'an', 'toàn', 'tự', 'do', 'hạnh', 'phúc',
+        'thuận', 'tiện', 'quan', 'chính', 'bình', 'đặc', 'độc'
       ]);
 
       const classifierStarters = new Set([
@@ -466,8 +486,8 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
   
   // 2. Google single translation
   try {
-    const translateRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(searchWord)}`);
-    if (translateRes.ok) {
+    const translateRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(searchWord)}`).catch(() => null);
+    if (translateRes && translateRes.ok) {
       const translateData = await translateRes.json();
       if (Array.isArray(translateData) && translateData[0] && translateData[0][0]) {
         meaning = translateData[0][0][0] || '';
@@ -475,6 +495,22 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
     }
   } catch (err) {
     console.error('Error fetching Google Translate:', err);
+  }
+
+  // 3. Fallback to MyMemory if Google Translate fails
+  if (!meaning) {
+    try {
+      const myMemoryRes = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(searchWord)}&langpair=en|vi`).catch(() => null);
+      if (myMemoryRes && myMemoryRes.ok) {
+        const myMemoryData = await myMemoryRes.json();
+        const translatedText = myMemoryData?.responseData?.translatedText?.trim();
+        if (translatedText && !translatedText.includes('MYMEMORY WARNING')) {
+          meaning = translatedText;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to translate using MyMemory fallback:', err);
+    }
   }
   
   if (transliteration || meaning) {
@@ -506,55 +542,75 @@ export interface TatoebaExample {
   pinyin?: string;
 }
 
+async function fetchGeminiContent(
+  prompt: string,
+  isJson: boolean = false
+): Promise<string> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Chưa cấu hình VITE_GEMINI_API_KEY trong file .env.local');
+  }
+
+  const models = [
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-3.6-flash'
+  ];
+
+  let lastError: any = null;
+
+  for (const model of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    try {
+      const body: any = {
+        contents: [{ parts: [{ text: prompt }] }]
+      };
+      if (isJson) {
+        body.generationConfig = {
+          responseMimeType: 'application/json'
+        };
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          return text;
+        }
+      } else {
+        const errText = await response.text();
+        console.warn(`Gemini model ${model} failed with status ${response.status}: ${errText}`);
+        lastError = new Error(`Lỗi Gemini (${model}): Trạng thái ${response.status}`);
+      }
+    } catch (err) {
+      console.warn(`Gemini model ${model} failed to fetch:`, err);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('Tất cả các model Gemini được thử nghiệm đều không hoạt động.');
+}
+
 export async function fetchGeminiExample(
   word: string,
   meaning: string,
   wordType: string,
   lang: 'cmn' | 'eng'
 ): Promise<TatoebaExample> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'Không tìm thấy câu ví dụ nào trong kho dữ liệu Tatoeba. (Bạn có thể cấu hình khóa VITE_GEMINI_API_KEY trong file web/.env.local để tự động sinh câu ví dụ bằng AI).'
-    );
-  }
-
   const isChinese = lang === 'cmn';
   const prompt = isChinese
     ? `Generate a simple, natural example sentence for the Chinese word '${word}' (meaning: ${meaning}, word type: ${wordType || 'danh từ'}). Provide your response as a JSON object with exactly three keys: 'sentence' (the Chinese sentence), 'translation' (natural translation in Vietnamese), and 'pinyin' (pinyin for the Chinese sentence with proper tones). Do not return any other text, only the JSON.`
     : `Generate a simple, natural example sentence for the English word '${word}' (meaning: ${meaning}, word type: ${wordType || 'danh từ'}). Provide your response as a JSON object with exactly two keys: 'sentence' (the English sentence) and 'translation' (natural translation in Vietnamese). Do not return any other text, only the JSON.`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: prompt }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Lỗi kết nối với Gemini API: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('Gemini không phản hồi dữ liệu hợp lệ.');
-  }
-
+  const text = await fetchGeminiContent(prompt, true);
   const parsed = JSON.parse(text);
   if (!parsed.sentence || !parsed.translation) {
     throw new Error('Dữ liệu ví dụ sinh bởi AI không hợp lệ.');
@@ -687,11 +743,6 @@ export async function refineChineseWordWithGemini(
   word: string,
   currentHanViet: string
 ): Promise<ChineseRefineResult> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Chưa cấu hình VITE_GEMINI_API_KEY trong file .env.local');
-  }
-
   const prompt = `Bạn là chuyên gia ngôn ngữ Trung - Việt. Hãy sửa lỗi dịch thuật cho từ Chữ Hán: "${word}" (Hán Việt hiện tại: "${currentHanViet}").
 Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON với đúng 4 thuộc tính sau:
 - "pinyin": Phiên âm pinyin chuẩn có dấu thanh (ví dụ: "shī gǔ" hoặc "xiǎo niú dú", chú ý viết rời các từ nếu là từ ghép).
@@ -701,31 +752,7 @@ Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON 
 
 Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất kỳ văn bản nào khác.`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Lỗi kết nối với Gemini API: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('Gemini không phản hồi dữ liệu hợp lệ.');
-  }
-
+  const text = await fetchGeminiContent(prompt, true);
   const parsed = JSON.parse(text);
   if (!parsed.pinyin || !parsed.han_viet || !parsed.meaning) {
     throw new Error('Dữ liệu dịch phản hồi bởi AI không hợp lệ.');
