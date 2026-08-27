@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Vocabulary, VocabularyInput } from '../utils/api';
-import { lookupChineseWord, refineChineseWordWithGemini } from '../utils/dictionary';
+import { lookupChineseWord } from '../utils/dictionary';
 
 interface WordModalProps {
   isOpen: boolean;
@@ -24,9 +24,9 @@ export const WordModal: React.FC<WordModalProps> = ({
   const [studyDate, setStudyDate] = useState('');
   const [wordType, setWordType] = useState('Danh từ');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRefining, setIsRefining] = useState(false);
   const [error, setError] = useState('');
   const [alternatives, setAlternatives] = useState<string[]>([]);
+  const [example, setExample] = useState<{ sentence: string; translation: string; pinyin?: string } | null>(null);
 
 
   // Auto-fill details using Backend Lookup API
@@ -44,6 +44,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       if (data.meaning) setMeaning(data.meaning);
       if (data.word_type) setWordType(data.word_type);
       if (data.alternatives) setAlternatives(data.alternatives);
+      if (data.example) setExample(data.example);
     } catch (err) {
       console.error('Failed to look up word details:', err);
     }
@@ -57,22 +58,6 @@ export const WordModal: React.FC<WordModalProps> = ({
     }
   };
 
-  const handleGeminiRefine = async () => {
-    if (!chinese.trim()) return;
-    try {
-      setIsRefining(true);
-      setError('');
-      const refined = await refineChineseWordWithGemini(chinese.trim(), hanViet.trim());
-      if (refined.pinyin) setPinyin(refined.pinyin);
-      if (refined.han_viet) setHanViet(refined.han_viet);
-      if (refined.meaning) setMeaning(refined.meaning);
-      if (refined.word_type) setWordType(refined.word_type);
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi sửa lỗi bằng AI.');
-    } finally {
-      setIsRefining(false);
-    }
-  };
 
   useEffect(() => {
     if (editingWord) {
@@ -84,6 +69,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       setMemoryLevel(editingWord.memory_level);
       setStudyDate(editingWord.study_date || new Date().toISOString().split('T')[0]);
       setAlternatives([]);
+      setExample(editingWord.example || null);
     } else {
       setChinese('');
       setPinyin('');
@@ -93,6 +79,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       setMemoryLevel('Dễ quên');
       setStudyDate(new Date().toISOString().split('T')[0]);
       setAlternatives([]);
+      setExample(null);
     }
     setError('');
   }, [editingWord, isOpen]);
@@ -116,7 +103,8 @@ export const WordModal: React.FC<WordModalProps> = ({
         meaning: meaning.trim(),
         word_type: wordType,
         memory_level: memoryLevel,
-        study_date: studyDate || null
+        study_date: studyDate || null,
+        example: example
       });
       onClose();
     } catch (err: any) {
@@ -254,6 +242,18 @@ export const WordModal: React.FC<WordModalProps> = ({
                   ))}
                 </div>
               )}
+              {/* Ví dụ minh họa (AI tự sinh, hiển thị trực quan không cho phép sửa) */}
+              {example && example.sentence && (
+                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-lg mt-4 animate-in fade-in duration-200">
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-bold text-slate-900 font-chinese">{example.sentence}</p>
+                    {example.pinyin && (
+                      <p className="text-sm text-primary font-mono font-medium">{example.pinyin}</p>
+                    )}
+                    <p className="text-sm text-slate-500 font-medium">{example.translation}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -290,31 +290,19 @@ export const WordModal: React.FC<WordModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-between mt-8 pt-4 border-t border-slate-100">
-            <div>
-              {chinese.trim() && (
-                <button
-                  type="button"
-                  onClick={handleGeminiRefine}
-                  disabled={isRefining || isSubmitting}
-                  className="px-4 py-2 text-xs font-semibold text-primary hover:text-white border border-primary hover:bg-primary rounded transition duration-200 flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  {isRefining ? 'Đang sửa lỗi...' : 'Sửa lỗi bằng AI'}
-                </button>
-              )}
-            </div>
+          <div className="flex items-center justify-end mt-8 pt-4 border-t border-slate-100">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                disabled={isSubmitting || isRefining}
+                disabled={isSubmitting}
                 className="px-5 py-2 text-sm font-semibold text-text-muted hover:text-text-charcoal hover:bg-slate-50 rounded transition duration-200"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || isRefining}
+                disabled={isSubmitting}
                 className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded shadow-sm transition duration-200 flex items-center justify-center min-w-[80px]"
               >
                 {isSubmitting ? 'Đang lưu...' : 'Lưu'}

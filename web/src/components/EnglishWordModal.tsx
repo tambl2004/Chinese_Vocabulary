@@ -24,6 +24,7 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
   const [wordType, setWordType] = useState('Danh từ');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [example, setExample] = useState<{ sentence: string; translation: string } | null>(null);
   
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -35,6 +36,7 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
       if (data.transliteration) setTransliteration(data.transliteration);
       if (data.meaning) setMeaning(data.meaning);
       if (data.word_type) setWordType(data.word_type);
+      if (data.example) setExample(data.example);
     } catch (err) {
       console.error('Failed to look up English word details:', err);
     }
@@ -63,6 +65,7 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
         setTransliteration(data.transliteration);
         setMeaning(data.meaning);
         if (data.word_type) setWordType(data.word_type);
+        if (data.example) setExample(data.example);
       }
     } catch (err) {
       console.error('Error fetching suggestions:', err);
@@ -73,6 +76,8 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
     setWord(candidate.word);
     setTransliteration(candidate.transliteration);
     setMeaning(candidate.meaning);
+    if (candidate.word_type) setWordType(candidate.word_type);
+    setExample(candidate.example || null);
     setSuggestions([]);
     setShowSuggestions(false);
   };
@@ -85,6 +90,7 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
       setWordType(editingWord.word_type || 'Danh từ');
       setMemoryLevel(editingWord.memory_level);
       setStudyDate(editingWord.study_date || new Date().toISOString().split('T')[0]);
+      setExample(editingWord.example || null);
     } else {
       setWord('');
       setTransliteration('');
@@ -92,6 +98,7 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
       setWordType('Danh từ');
       setMemoryLevel('Dễ quên');
       setStudyDate(new Date().toISOString().split('T')[0]);
+      setExample(null);
     }
     setError('');
     setSuggestions([]);
@@ -116,7 +123,8 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
         meaning: meaning.trim(),
         word_type: wordType,
         memory_level: memoryLevel,
-        study_date: studyDate || null
+        study_date: studyDate || null,
+        example: example
       });
       onClose();
     } catch (err: any) {
@@ -245,6 +253,15 @@ export const EnglishWordModal: React.FC<EnglishWordModalProps> = ({
                 required
               />
             </div>
+            {/* Ví dụ minh họa (AI tự sinh, hiển thị trực quan không cho phép sửa) */}
+            {example && example.sentence && (
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-lg mt-4 animate-in fade-in duration-200">
+                <div className="space-y-1.5">
+                  <p className="text-sm font-bold text-slate-900">{example.sentence}</p>
+                  <p className="text-sm text-primary font-medium">{example.translation}</p>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

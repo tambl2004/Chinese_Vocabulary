@@ -11,6 +11,7 @@ export interface ChineseMatch {
   meaning: string;
   word_type?: string;
   alternatives?: string[];
+  example?: { sentence: string; translation: string; pinyin?: string } | null;
 }
 
 export interface EnglishMatch {
@@ -18,6 +19,7 @@ export interface EnglishMatch {
   transliteration: string;
   meaning: string;
   word_type?: string;
+  example?: { sentence: string; translation: string } | null;
   suggestions?: EnglishMatch[];
 }
 
@@ -187,6 +189,7 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
   let meaning = '';
   let word_type = 'Danh từ';
   const alternatives: string[] = [];
+  let example: any = null;
 
   let geminiSuccess = false;
   try {
@@ -196,7 +199,8 @@ Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON 
 - "han_viet": Âm Hán Việt chuẩn viết thường (ví dụ: "thi cốt" hoặc "tiểu ngưu độc", chú ý viết rời các từ).
 - "meaning": Nghĩa tiếng Việt chính chuẩn, ngắn gọn và tự nhiên nhất (ví dụ: "hài cốt" hoặc "bê con").
 - "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v. Nếu từ đóng vai trò của nhiều loại từ, hãy liệt kê chúng ngăn cách bằng dấu gạch chéo "/", ví dụ: "Tính từ/Danh từ" hoặc "Động từ/Danh từ").
-- "alternatives": Mảng gồm 2-3 nghĩa tiếng Việt khác của từ đó (các nét nghĩa khác nhau của từ, viết ngắn gọn và sát nghĩa nhất, ví dụ đối với từ "临" thì alternatives là ["sắp sửa", "đến, tới"]).
+- "alternatives": Mảng gồm 2-3 nghĩa tiếng Việt khác của từ đó (các nét nghĩa khác nhau của từ, viết ngắn gọn và sát nghĩa nhất).
+- "example": Một đối tượng JSON chứa câu ví dụ ngắn gọn, tự nhiên dùng từ "${word}" đó, gồm 3 thuộc tính: "sentence" (câu tiếng Trung, tối đa 15 chữ), "pinyin" (phiên âm pinyin có dấu của câu), "translation" (dịch nghĩa tiếng Việt câu).
 
 Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất kỳ văn bản nào khác.`;
 
@@ -221,6 +225,14 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
         });
       }
 
+      if (parsed.example && parsed.example.sentence && parsed.example.translation) {
+        example = {
+          sentence: parsed.example.sentence.trim(),
+          translation: parsed.example.translation.trim(),
+          pinyin: parsed.example.pinyin ? parsed.example.pinyin.trim() : undefined
+        };
+      }
+
       geminiSuccess = true;
       
       return {
@@ -229,7 +241,8 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
         han_viet: finalHV,
         meaning,
         word_type,
-        alternatives: alternatives.length > 0 ? alternatives : undefined
+        alternatives: alternatives.length > 0 ? alternatives : undefined,
+        example: example
       };
     }
   } catch (err) {
@@ -246,17 +259,14 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
       if (viRes && viRes.ok) {
         const viData = await viRes.json();
         if (viData && viData[0]) {
-          // Meaning is at data[0][0][0]
           if (viData[0][0] && viData[0][0][0]) {
             meaning = viData[0][0][0].trim();
           }
-          // Pinyin is at data[0][1] and index 3
           if (viData[0][1] && viData[0][1][3]) {
             pinyin = viData[0][1][3].trim().toLowerCase();
           }
         }
 
-        // Parse alternative translations
         if (viData && viData[5] && viData[5][0] && viData[5][0][2]) {
           const list = viData[5][0][2];
           for (const item of list) {
@@ -325,7 +335,6 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
         }
       }
 
-      // Refine word type using Vietnamese meaning heuristic
       if (meaning) {
         const cleanMeaning = meaning.trim().toLowerCase();
         const firstWord = cleanMeaning.split(/[\s,;-]+/)[0];
@@ -404,7 +413,6 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
         if (adverbStarters.has(firstWord)) detectedPos.push('Phó từ');
         if (interjectionStarters.has(firstWord)) detectedPos.push('Thán từ');
 
-        // If we have highly specific grammar categories, remove generic "Danh từ" unless it's a Verb/Adjective
         const specificCategories = ['Lượng từ', 'Số từ', 'Trợ từ', 'Liên từ', 'Thán từ', 'Phó từ', 'Giới từ', 'Đại từ'];
         const hasSpecific = detectedPos.some(pos => specificCategories.includes(pos));
         
@@ -415,7 +423,6 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
           }
         }
 
-        // Merge detected POS into posList
         for (const pos of detectedPos) {
           if (!posList.includes(pos)) {
             posList.push(pos);
@@ -423,7 +430,6 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
         }
       }
 
-      // Sort by priority map to ensure primary word types like Động từ/Tính từ appear first
       const posPriority: Record<string, number> = {
         'Động từ': 1,
         'Tính từ': 2,
@@ -447,6 +453,15 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
 
       word_type = posList.length > 0 ? posList.join('/') : 'Danh từ';
 
+      try {
+        const tatoebaData = await fetchTatoebaExample(word, 'cmn', meaning, word_type);
+        if (tatoebaData && tatoebaData.sentence) {
+          example = tatoebaData;
+        }
+      } catch (exErr) {
+        console.error('Failed fallback Tatoeba fetch in lookup:', exErr);
+      }
+
     } catch (error) {
       console.error('Error fetching online pinyin/meaning/wordtype:', error);
     }
@@ -458,7 +473,8 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
     han_viet,
     meaning,
     word_type,
-    alternatives: alternatives.length > 0 ? alternatives : undefined
+    alternatives: alternatives.length > 0 ? alternatives : undefined,
+    example: example
   };
 }
 
@@ -489,6 +505,7 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
   let transliteration = '';
   let meaning = '';
   let word_type = 'Danh từ';
+  let example: any = null;
   
   // Lớp 1 (Mặc định): Thử dịch bằng Gemini trước
   let geminiSuccess = false;
@@ -498,6 +515,7 @@ Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON 
 - "transliteration": Phiên âm IPA chuẩn tiếng Anh (ví dụ: "/smīl/" hoặc "/æp.əl/").
 - "meaning": Nghĩa tiếng Việt chuẩn, tự nhiên nhất (ví dụ: "mỉm cười" hoặc "quả táo").
 - "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v.).
+- "example": Một đối tượng JSON chứa câu ví dụ ngắn gọn, tự nhiên dùng từ "${searchWord}" đó, gồm 2 thuộc tính: "sentence" (câu tiếng Anh, tối đa 15 từ), "translation" (dịch nghĩa tiếng Việt câu).
 
 Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất kỳ văn bản nào khác.`;
 
@@ -507,6 +525,14 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
       transliteration = parsed.transliteration || '';
       meaning = parsed.meaning.trim();
       word_type = parsed.word_type ? parsed.word_type.trim() : 'Danh từ';
+      
+      if (parsed.example && parsed.example.sentence && parsed.example.translation) {
+        example = {
+          sentence: parsed.example.sentence.trim(),
+          translation: parsed.example.translation.trim()
+        };
+      }
+      
       geminiSuccess = true;
     }
   } catch (err) {
@@ -515,7 +541,6 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
 
   // Lớp 2 (Dự phòng): Nếu Gemini lỗi/hết limit, dùng Dictionary API + Google Translate + MyMemory
   if (!geminiSuccess) {
-    // 1. Dictionary phonetic & POS
     try {
       const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(searchWord)}`);
       if (dictRes.ok) {
@@ -557,7 +582,6 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
       console.error('Error fetching Dictionary API:', err);
     }
     
-    // 2. Google single translation
     try {
       const translateRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(searchWord)}`).catch(() => null);
       if (translateRes && translateRes.ok) {
@@ -570,7 +594,6 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
       console.error('Error fetching Google Translate:', err);
     }
 
-    // 3. Fallback to MyMemory if Google Translate fails
     if (!meaning) {
       try {
         const myMemoryRes = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(searchWord)}&langpair=en|vi`).catch(() => null);
@@ -585,6 +608,15 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
         console.error('Failed to translate using MyMemory fallback:', err);
       }
     }
+
+    try {
+      const tatoebaData = await fetchTatoebaExample(searchWord, 'eng', meaning, word_type);
+      if (tatoebaData && tatoebaData.sentence) {
+        example = tatoebaData;
+      }
+    } catch (exErr) {
+      console.error('Failed fallback Tatoeba fetch in English lookup:', exErr);
+    }
   }
   
   if (transliteration || meaning) {
@@ -592,7 +624,8 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
       word: word.trim(),
       transliteration: transliteration || '',
       meaning: meaning || '',
-      word_type: word_type || 'Danh từ'
+      word_type: word_type || 'Danh từ',
+      example: example
     };
     return {
       ...dynamicMatch,
@@ -605,6 +638,7 @@ Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất k�
     transliteration: '',
     meaning: '',
     word_type: 'Danh từ',
+    example: null,
     suggestions
   };
 }
