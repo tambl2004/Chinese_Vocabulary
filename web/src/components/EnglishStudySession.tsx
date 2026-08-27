@@ -55,7 +55,13 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
     try {
       setIsLoadingExample(true);
       setExampleError(null);
-      const data = await fetchTatoebaExample(currentWord.word, 'eng', currentWord.meaning, currentWord.word_type || '');
+      const data = await fetchTatoebaExample(
+        currentWord.word,
+        'eng',
+        currentWord.meaning,
+        currentWord.word_type || '',
+        example?.sentence
+      );
       setExample(data);
       // Persist to database
       await onUpdateExample(currentWord.id, data);
@@ -108,7 +114,7 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-[#f7f9fb] z-50 flex flex-col justify-between">
+    <div className="fixed inset-0 bg-[#f7f9fb] z-50 flex flex-col justify-between overflow-y-auto">
       {/* Top Progress bar and Header */}
       <div className="w-full">
         {/* Progress Bar */}
