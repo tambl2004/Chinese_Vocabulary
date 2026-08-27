@@ -188,218 +188,268 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
   let word_type = 'Danh từ';
   const alternatives: string[] = [];
 
+  let geminiSuccess = false;
   try {
-    const viResPromise = fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&dt=at&dt=rm&q=${encodeURIComponent(word)}`).catch(() => null);
-    const enResPromise = fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&hl=en&dt=bd&q=${encodeURIComponent(word)}`).catch(() => null);
+    const prompt = `Bạn là chuyên gia ngôn ngữ Trung - Việt. Hãy phân tích từ Chữ Hán: "${word}" (Hán Việt gợi ý: "${han_viet}").
+Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON với đúng các thuộc tính sau:
+- "pinyin": Phiên âm pinyin chuẩn có dấu thanh (ví dụ: "shī gǔ" hoặc "xiǎo niú dú", chú ý viết rời các từ nếu là từ ghép).
+- "han_viet": Âm Hán Việt chuẩn viết thường (ví dụ: "thi cốt" hoặc "tiểu ngưu độc", chú ý viết rời các từ).
+- "meaning": Nghĩa tiếng Việt chuẩn, tự nhiên nhất (ví dụ: "hài cốt, xương" hoặc "bê con").
+- "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v.).
+- "alternatives": Mảng gồm 2-3 nghĩa tiếng Việt gợi ý khác hoặc từ đồng nghĩa của nghĩa tiếng Việt đó.
 
-    const [viRes, enRes] = await Promise.all([viResPromise, enResPromise]);
+Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất kỳ văn bản nào khác.`;
 
-    if (viRes && viRes.ok) {
-      const viData = await viRes.json();
-      if (viData && viData[0]) {
-        // Meaning is at data[0][0][0]
-        if (viData[0][0] && viData[0][0][0]) {
-          meaning = viData[0][0][0].trim();
-        }
-        // Pinyin is at data[0][1] and index 3
-        if (viData[0][1] && viData[0][1][3]) {
-          pinyin = viData[0][1][3].trim().toLowerCase();
-        }
-      }
-
-      // Parse alternative translations
-      if (viData && viData[5] && viData[5][0] && viData[5][0][2]) {
-        const list = viData[5][0][2];
-        for (const item of list) {
-          if (item && item[0]) {
-            const alt = item[0].trim();
-            if (alt && !alternatives.includes(alt)) {
-              alternatives.push(alt);
-            }
-          }
-        }
-      }
-    }
-
-    if (!meaning) {
-      try {
-        const myMemoryRes = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=zh|vi`).catch(() => null);
-        if (myMemoryRes && myMemoryRes.ok) {
-          const myMemoryData = await myMemoryRes.json();
-          const translatedText = myMemoryData?.responseData?.translatedText?.trim();
-          if (translatedText && !translatedText.includes('MYMEMORY WARNING')) {
-            meaning = translatedText;
-            if (!alternatives.includes(meaning)) {
-              alternatives.unshift(meaning);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Failed to translate using MyMemory fallback:', err);
-      }
-    }
-
-    const posList: string[] = [];
-
-    if (enRes && enRes.ok) {
-      const enData = await enRes.json();
-      if (enData && enData[1]) {
-        for (const item of enData[1]) {
-          if (item && item[0]) {
-            const enPos = item[0].toLowerCase();
-            let mapped = '';
-            if (enPos.includes('noun')) {
-              mapped = 'Danh từ';
-            } else if (enPos.includes('verb')) {
-              mapped = 'Động từ';
-            } else if (enPos.includes('adjective')) {
-              mapped = 'Tính từ';
-            } else if (enPos.includes('adverb')) {
-              mapped = 'Phó từ';
-            } else if (enPos.includes('pronoun')) {
-              mapped = 'Đại từ';
-            } else if (enPos.includes('preposition')) {
-              mapped = 'Giới từ';
-            } else if (enPos.includes('conjunction')) {
-              mapped = 'Liên từ';
-            } else if (enPos.includes('interjection')) {
-              mapped = 'Thán từ';
-            } else if (enPos.includes('numeral') || enPos.includes('number') || enPos.includes('cardinal')) {
-              mapped = 'Lượng từ';
-            }
-            
-            if (mapped && !posList.includes(mapped)) {
-              posList.push(mapped);
-            }
-          }
-        }
-      }
-    }
-
-    // Refine word type using Vietnamese meaning heuristic
-    if (meaning) {
-      const cleanMeaning = meaning.trim().toLowerCase();
-      const firstWord = cleanMeaning.split(/[\s,;-]+/)[0];
+    const text = await fetchGeminiContent(prompt, true);
+    const parsed = JSON.parse(text);
+    if (parsed.pinyin && parsed.han_viet && parsed.meaning) {
+      pinyin = parsed.pinyin.trim();
+      meaning = parsed.meaning.trim();
+      word_type = parsed.word_type ? parsed.word_type.trim() : 'Danh từ';
       
-      const verbStarters = new Set([
-        'nhảy', 'chạy', 'bơi', 'đi', 'đến', 'về', 'gặp', 'nói', 'kể', 'hỏi', 'nghe', 'xem', 'nhìn', 'thấy', 
-        'đọc', 'viết', 'vẽ', 'học', 'dạy', 'ăn', 'uống', 'ngủ', 'chơi', 'làm', 'chế', 'sửa', 'mua', 'bán', 
-        'mượn', 'trả', 'gửi', 'nhận', 'mang', 'cầm', 'nắm', 'lấy', 'cho', 'tặng', 'đấu', 'đánh', 'kéo', 'đẩy',
-        'hát', 'múa', 'khóc', 'cười', 'tắm', 'giặt', 'chụp', 'leo', 'trèo', 'bay', 'lội',
-        'nghĩ', 'hiểu', 'biết', 'yêu', 'ghét', 'thích', 'mong', 'muốn', 'sợ', 'lo', 'giúp', 'chia', 'cắt', 
-        'mở', 'đóng', 'tắt', 'bật', 'quay', 'xoay', 'luyện', 'phát', 'tiến', 'sử', 'cảm', 'quyết', 'tin', 
-        'mơ', 'hy', 'tham', 'tổ',
-        'tập', 'bắt', 'kết', 'hoàn', 'tìm', 'tránh', 'chờ', 'hẹn', 'phản', 'đồng', 'chấp', 'từ', 'ngăn', 
-        'cấm', 'đề', 'khuyên', 'nhắc', 'chú', 'quan', 'chăm', 'giải', 'xử', 'thực', 'áp', 'tạo', 'gây', 
-        'dẫn', 'thay', 'biến', 'tăng', 'giảm', 'xuất', 'mỉm', 'cố', 'thể', 'nghiên', 'sản', 'phục', 
-        'tiếp', 'thuộc', 'chống', 'đối', 'hướng', 'phân', 'giới', 'chuẩn', 'cung', 'đáp', 'báo', 'kiểm'
-      ]);
+      const parsedHV = parsed.han_viet.trim().toLowerCase();
+      const localHVCount = han_viet.split(/\s+/).length;
+      const remoteHVCount = parsedHV.split(/\s+/).length;
+      const finalHV = (remoteHVCount === localHVCount) ? parsedHV : han_viet;
 
-      const adjStarters = new Set([
-        'đẹp', 'xấu', 'cao', 'thấp', 'ngắn', 'dài', 'to', 'nhỏ', 'lớn', 'bé', 'nóng', 'lạnh', 'ấm', 'mát',
-        'nhanh', 'chậm', 'tốt', 'tồi', 'giàu', 'nghèo', 'khỏe', 'yếu', 'thông', 'minh', 'ngu', 'dốt', 'chăm',
-        'lười', 'sạch', 'bẩn', 'thơm', 'thối', 'ngọt', 'chua', 'cay', 'mặn', 'đắng', 'nhạt', 'khô', 'ướt',
-        'đầy', 'trống', 'nặng', 'nhẹ', 'sáng', 'tối', 'mới', 'cũ', 'trẻ', 'già', 'đắt', 'rẻ', 'dễ', 'khó',
-        'đúng', 'sai', 'gần', 'xa', 'sâu', 'nông', 'rộng', 'hẹp', 'vui', 'buồn', 'vất', 'khổ',
-        'sướng', 'khác', 'giống', 'quen', 'lạ', 'nguy', 'hiểm', 'an', 'toàn', 'tự', 'do', 'hạnh', 'phúc',
-        'thuận', 'tiện', 'quan', 'chính', 'bình', 'đặc', 'độc'
-      ]);
+      if (parsed.alternatives && Array.isArray(parsed.alternatives)) {
+        parsed.alternatives.forEach((alt: string) => {
+          const cleanAlt = alt.trim();
+          if (cleanAlt && !alternatives.includes(cleanAlt) && cleanAlt !== meaning) {
+            alternatives.push(cleanAlt);
+          }
+        });
+      }
 
-      const classifierStarters = new Set([
-        'cái', 'con', 'chiếc', 'tấm', 'bức', 'quyển', 'cuốn', 'bản', 'tờ', 'sợi', 'cây', 'quả', 'trái', 
-        'hạt', 'củ', 'bông', 'đoá', 'ngôi', 'gian', 'căn', 'khẩu', 'lưỡi', 'cỗ', 'viên', 'cặp', 'đôi', 
-        'bộ', 'nhóm', 'đàn', 'lần', 'lượt', 'chuyến'
-      ]);
-
-      const numeralStarters = new Set([
-        'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín', 'mười', 'trăm', 'nghìn', 'ngàn', 
-        'vạn', 'triệu', 'tỷ', 'lăm', 'tư', 'mươi'
-      ]);
-
-      const pronounStarters = new Set([
-        'tới', 'tôi', 'tao', 'tớ', 'mình', 'chúng', 'bạn', 'mày', 'cậu', 'anh', 'chị', 'ông', 'bà', 'nó', 'họ', 
-        'ai', 'gì', 'nào', 'đâu', 'đây', 'kia', 'ấy', 'này'
-      ]);
-
-      const prepositionStarters = new Set([
-        'ở', 'tại', 'trong', 'ngoài', 'trên', 'dưới', 'trước', 'sau', 'giữa', 'đến', 'từ', 'bằng', 'với', 
-        'cho', 'vì', 'do', 'bởi', 'về'
-      ]);
-
-      const conjunctionStarters = new Set([
-        'và', 'hoặc', 'nhưng', 'mà', 'nếu', 'thì', 'tuy', 'như', 'hơn'
-      ]);
-
-      const particleStarters = new Set([
-        'của', 'rồi', 'nhỉ', 'nhé', 'nha', 'chứ', 'sao', 'quá', 'lắm', 'thật'
-      ]);
-
-      const adverbStarters = new Set([
-        'rất', 'quá', 'lắm', 'hơi', 'cực', 'hoàn', 'đều', 'cũng', 'đã', 'đang', 'sẽ', 'chưa', 'không', 
-        'chẳng', 'đừng', 'hãy', 'luôn', 'thường', 'vừa', 'mới', 'lại', 'chỉ'
-      ]);
-
-      const interjectionStarters = new Set([
-        'ôi', 'a', 'ơi', 'dạ', 'vâng'
-      ]);
-
-      const detectedPos = [];
-      if (verbStarters.has(firstWord)) detectedPos.push('Động từ');
-      if (adjStarters.has(firstWord)) detectedPos.push('Tính từ');
-      if (classifierStarters.has(firstWord)) detectedPos.push('Lượng từ');
-      if (numeralStarters.has(firstWord)) detectedPos.push('Số từ');
-      if (pronounStarters.has(firstWord)) detectedPos.push('Đại từ');
-      if (prepositionStarters.has(firstWord)) detectedPos.push('Giới từ');
-      if (conjunctionStarters.has(firstWord)) detectedPos.push('Liên từ');
-      if (particleStarters.has(firstWord) || ['的', '了', '吧', '吗', '呢', '着', '过'].includes(word)) detectedPos.push('Trợ từ');
-      if (adverbStarters.has(firstWord)) detectedPos.push('Phó từ');
-      if (interjectionStarters.has(firstWord)) detectedPos.push('Thán từ');
-
-      // If we have highly specific grammar categories, remove generic "Danh từ" unless it's a Verb/Adjective
-      const specificCategories = ['Lượng từ', 'Số từ', 'Trợ từ', 'Liên từ', 'Thán từ', 'Phó từ', 'Giới từ', 'Đại từ'];
-      const hasSpecific = detectedPos.some(pos => specificCategories.includes(pos));
+      geminiSuccess = true;
       
-      if (hasSpecific) {
-        const index = posList.indexOf('Danh từ');
-        if (index > -1) {
-          posList.splice(index, 1);
-        }
-      }
-
-      // Merge detected POS into posList
-      for (const pos of detectedPos) {
-        if (!posList.includes(pos)) {
-          posList.push(pos);
-        }
-      }
+      return {
+        chinese: word,
+        pinyin,
+        han_viet: finalHV,
+        meaning,
+        word_type,
+        alternatives: alternatives.length > 0 ? alternatives : undefined
+      };
     }
+  } catch (err) {
+    console.warn('Gemini primary translation failed, falling back to Google Translate/Local DB:', err);
+  }
 
-    // Sort by priority map to ensure primary word types like Động từ/Tính từ appear first
-    const posPriority: Record<string, number> = {
-      'Động từ': 1,
-      'Tính từ': 2,
-      'Danh từ': 3,
-      'Phó từ': 4,
-      'Đại từ': 5,
-      'Giới từ': 6,
-      'Liên từ': 7,
-      'Thán từ': 8,
-      'Lượng từ': 9,
-      'Số từ': 10,
-      'Trợ từ': 11,
-      'Khác': 12
-    };
+  if (!geminiSuccess) {
+    try {
+      const viResPromise = fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&dt=at&dt=rm&q=${encodeURIComponent(word)}`).catch(() => null);
+      const enResPromise = fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&hl=en&dt=bd&q=${encodeURIComponent(word)}`).catch(() => null);
 
-    posList.sort((a, b) => {
-      const prioA = posPriority[a] || 99;
-      const prioB = posPriority[b] || 99;
-      return prioA - prioB;
-    });
+      const [viRes, enRes] = await Promise.all([viResPromise, enResPromise]);
 
-    word_type = posList.length > 0 ? posList.join('/') : 'Danh từ';
+      if (viRes && viRes.ok) {
+        const viData = await viRes.json();
+        if (viData && viData[0]) {
+          // Meaning is at data[0][0][0]
+          if (viData[0][0] && viData[0][0][0]) {
+            meaning = viData[0][0][0].trim();
+          }
+          // Pinyin is at data[0][1] and index 3
+          if (viData[0][1] && viData[0][1][3]) {
+            pinyin = viData[0][1][3].trim().toLowerCase();
+          }
+        }
 
-  } catch (error) {
-    console.error('Error fetching online pinyin/meaning/wordtype:', error);
+        // Parse alternative translations
+        if (viData && viData[5] && viData[5][0] && viData[5][0][2]) {
+          const list = viData[5][0][2];
+          for (const item of list) {
+            if (item && item[0]) {
+              const alt = item[0].trim();
+              if (alt && !alternatives.includes(alt)) {
+                alternatives.push(alt);
+              }
+            }
+          }
+        }
+      }
+
+      if (!meaning) {
+        try {
+          const myMemoryRes = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=zh|vi`).catch(() => null);
+          if (myMemoryRes && myMemoryRes.ok) {
+            const myMemoryData = await myMemoryRes.json();
+            const translatedText = myMemoryData?.responseData?.translatedText?.trim();
+            if (translatedText && !translatedText.includes('MYMEMORY WARNING')) {
+              meaning = translatedText;
+              if (!alternatives.includes(meaning)) {
+                alternatives.unshift(meaning);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to translate using MyMemory fallback:', err);
+        }
+      }
+
+      const posList: string[] = [];
+
+      if (enRes && enRes.ok) {
+        const enData = await enRes.json();
+        if (enData && enData[1]) {
+          for (const item of enData[1]) {
+            if (item && item[0]) {
+              const enPos = item[0].toLowerCase();
+              let mapped = '';
+              if (enPos.includes('noun')) {
+                mapped = 'Danh từ';
+              } else if (enPos.includes('verb')) {
+                mapped = 'Động từ';
+              } else if (enPos.includes('adjective')) {
+                mapped = 'Tính từ';
+              } else if (enPos.includes('adverb')) {
+                mapped = 'Phó từ';
+              } else if (enPos.includes('pronoun')) {
+                mapped = 'Đại từ';
+              } else if (enPos.includes('preposition')) {
+                mapped = 'Giới từ';
+              } else if (enPos.includes('conjunction')) {
+                mapped = 'Liên từ';
+              } else if (enPos.includes('interjection')) {
+                mapped = 'Thán từ';
+              } else if (enPos.includes('numeral') || enPos.includes('number') || enPos.includes('cardinal')) {
+                mapped = 'Lượng từ';
+              }
+              
+              if (mapped && !posList.includes(mapped)) {
+                posList.push(mapped);
+              }
+            }
+          }
+        }
+      }
+
+      // Refine word type using Vietnamese meaning heuristic
+      if (meaning) {
+        const cleanMeaning = meaning.trim().toLowerCase();
+        const firstWord = cleanMeaning.split(/[\s,;-]+/)[0];
+        
+        const verbStarters = new Set([
+          'nhảy', 'chạy', 'bơi', 'đi', 'đến', 'về', 'gặp', 'nói', 'kể', 'hỏi', 'nghe', 'xem', 'nhìn', 'thấy', 
+          'đọc', 'viết', 'vẽ', 'học', 'dạy', 'ăn', 'uống', 'ngủ', 'chơi', 'làm', 'chế', 'sửa', 'mua', 'bán', 
+          'mượn', 'trả', 'gửi', 'nhận', 'mang', 'cầm', 'nắm', 'lấy', 'cho', 'tặng', 'đấu', 'đánh', 'kéo', 'đẩy',
+          'hát', 'múa', 'khóc', 'cười', 'tắm', 'giặt', 'chụp', 'leo', 'trèo', 'bay', 'lội',
+          'nghĩ', 'hiểu', 'biết', 'yêu', 'ghét', 'thích', 'mong', 'muốn', 'sợ', 'lo', 'giúp', 'chia', 'cắt', 
+          'mở', 'đóng', 'tắt', 'bật', 'quay', 'xoay', 'luyện', 'phát', 'tiến', 'sử', 'cảm', 'quyết', 'tin', 
+          'mơ', 'hy', 'tham', 'tổ',
+          'tập', 'bắt', 'kết', 'hoàn', 'tìm', 'tránh', 'chờ', 'hẹn', 'phản', 'đồng', 'chấp', 'từ', 'ngăn', 
+          'cấm', 'đề', 'khuyên', 'nhắc', 'chú', 'quan', 'chăm', 'giải', 'xử', 'thực', 'áp', 'tạo', 'gây', 
+          'dẫn', 'thay', 'biến', 'tăng', 'giảm', 'xuất', 'mỉm', 'cố', 'thể', 'nghiên', 'sản', 'phục', 
+          'tiếp', 'thuộc', 'chống', 'đối', 'hướng', 'phân', 'giới', 'chuẩn', 'cung', 'đáp', 'báo', 'kiểm'
+        ]);
+
+        const adjStarters = new Set([
+          'đẹp', 'xấu', 'cao', 'thấp', 'ngắn', 'dài', 'to', 'nhỏ', 'lớn', 'bé', 'nóng', 'lạnh', 'ấm', 'mát',
+          'nhanh', 'chậm', 'tốt', 'tồi', 'giàu', 'nghèo', 'khỏe', 'yếu', 'thông', 'minh', 'ngu', 'dốt', 'chăm',
+          'lười', 'sạch', 'bẩn', 'thơm', 'thối', 'ngọt', 'chua', 'cay', 'mặn', 'đắng', 'nhạt', 'khô', 'ướt',
+          'đầy', 'trống', 'nặng', 'nhẹ', 'sáng', 'tối', 'mới', 'cũ', 'trẻ', 'già', 'đắt', 'rẻ', 'dễ', 'khó',
+          'đúng', 'sai', 'gần', 'xa', 'sâu', 'nông', 'rộng', 'hẹp', 'vui', 'buồn', 'vất', 'khổ',
+          'sướng', 'khác', 'giống', 'quen', 'lạ', 'nguy', 'hiểm', 'an', 'toàn', 'tự', 'do', 'hạnh', 'phúc',
+          'thuận', 'tiện', 'quan', 'chính', 'bình', 'đặc', 'độc'
+        ]);
+
+        const classifierStarters = new Set([
+          'cái', 'con', 'chiếc', 'tấm', 'bức', 'quyển', 'cuốn', 'bản', 'tờ', 'sợi', 'cây', 'quả', 'trái', 
+          'hạt', 'củ', 'bông', 'đoá', 'ngôi', 'gian', 'căn', 'khẩu', 'lưỡi', 'cỗ', 'viên', 'cặp', 'đôi', 
+          'bộ', 'nhóm', 'đàn', 'lần', 'lượt', 'chuyến'
+        ]);
+
+        const numeralStarters = new Set([
+          'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín', 'mười', 'trăm', 'nghìn', 'ngàn', 
+          'vạn', 'triệu', 'tỷ', 'lăm', 'tư', 'mươi'
+        ]);
+
+        const pronounStarters = new Set([
+          'tới', 'tôi', 'tao', 'tớ', 'mình', 'chúng', 'bạn', 'mày', 'cậu', 'anh', 'chị', 'ông', 'bà', 'nó', 'họ', 
+          'ai', 'gì', 'nào', 'đâu', 'đây', 'kia', 'ấy', 'này'
+        ]);
+
+        const prepositionStarters = new Set([
+          'ở', 'tại', 'trong', 'ngoài', 'trên', 'dưới', 'trước', 'sau', 'giữa', 'đến', 'từ', 'bằng', 'với', 
+          'cho', 'vì', 'do', 'bởi', 'về'
+        ]);
+
+        const conjunctionStarters = new Set([
+          'và', 'hoặc', 'nhưng', 'mà', 'nếu', 'thì', 'tuy', 'như', 'hơn'
+        ]);
+
+        const particleStarters = new Set([
+          'của', 'rồi', 'nhỉ', 'nhé', 'nha', 'chứ', 'sao', 'quá', 'lắm', 'thật'
+        ]);
+
+        const adverbStarters = new Set([
+          'rất', 'quá', 'lắm', 'hơi', 'cực', 'hoàn', 'đều', 'cũng', 'đã', 'đang', 'sẽ', 'chưa', 'không', 
+          'chẳng', 'đừng', 'hãy', 'luôn', 'thường', 'vừa', 'mới', 'lại', 'chỉ'
+        ]);
+
+        const interjectionStarters = new Set([
+          'ôi', 'a', 'ơi', 'dạ', 'vâng'
+        ]);
+
+        const detectedPos = [];
+        if (verbStarters.has(firstWord)) detectedPos.push('Động từ');
+        if (adjStarters.has(firstWord)) detectedPos.push('Tính từ');
+        if (classifierStarters.has(firstWord)) detectedPos.push('Lượng từ');
+        if (numeralStarters.has(firstWord)) detectedPos.push('Số từ');
+        if (pronounStarters.has(firstWord)) detectedPos.push('Đại từ');
+        if (prepositionStarters.has(firstWord)) detectedPos.push('Giới từ');
+        if (conjunctionStarters.has(firstWord)) detectedPos.push('Liên từ');
+        if (particleStarters.has(firstWord) || ['đây', 'kia', 'ấy', 'này'].includes(word)) detectedPos.push('Trợ từ');
+        if (adverbStarters.has(firstWord)) detectedPos.push('Phó từ');
+        if (interjectionStarters.has(firstWord)) detectedPos.push('Thán từ');
+
+        // If we have highly specific grammar categories, remove generic "Danh từ" unless it's a Verb/Adjective
+        const specificCategories = ['Lượng từ', 'Số từ', 'Trợ từ', 'Liên từ', 'Thán từ', 'Phó từ', 'Giới từ', 'Đại từ'];
+        const hasSpecific = detectedPos.some(pos => specificCategories.includes(pos));
+        
+        if (hasSpecific) {
+          const index = posList.indexOf('Danh từ');
+          if (index > -1) {
+            posList.splice(index, 1);
+          }
+        }
+
+        // Merge detected POS into posList
+        for (const pos of detectedPos) {
+          if (!posList.includes(pos)) {
+            posList.push(pos);
+          }
+        }
+      }
+
+      // Sort by priority map to ensure primary word types like Động từ/Tính từ appear first
+      const posPriority: Record<string, number> = {
+        'Động từ': 1,
+        'Tính từ': 2,
+        'Danh từ': 3,
+        'Phó từ': 4,
+        'Đại từ': 5,
+        'Giới từ': 6,
+        'Liên từ': 7,
+        'Thán từ': 8,
+        'Lượng từ': 9,
+        'Số từ': 10,
+        'Trợ từ': 11,
+        'Khác': 12
+      };
+
+      posList.sort((a, b) => {
+        const prioA = posPriority[a] || 99;
+        const prioB = posPriority[b] || 99;
+        return prioA - prioB;
+      });
+
+      word_type = posList.length > 0 ? posList.join('/') : 'Danh từ';
+
+    } catch (error) {
+      console.error('Error fetching online pinyin/meaning/wordtype:', error);
+    }
   }
 
   return {
@@ -412,10 +462,8 @@ export async function lookupChineseWord(word: string): Promise<ChineseMatch> {
   };
 }
 
-// Client Lookup API: English
 export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
   await ensureEnglishDictLoaded();
-  
   const searchWord = word.trim().toLowerCase();
   let match = englishDictMap.get(searchWord);
   
@@ -442,74 +490,100 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
   let meaning = '';
   let word_type = 'Danh từ';
   
-  // 1. Dictionary phonetic & POS
+  // Lớp 1 (Mặc định): Thử dịch bằng Gemini trước
+  let geminiSuccess = false;
   try {
-    const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(searchWord)}`);
-    if (dictRes.ok) {
-      const dictData = await dictRes.json();
-      if (Array.isArray(dictData) && dictData.length > 0) {
-        const entry = dictData[0];
-        transliteration = entry.phonetic || '';
-        if (!transliteration && entry.phonetics) {
-          const foundText = entry.phonetics.find((p: any) => p.text && p.text.trim())?.text;
-          if (foundText) transliteration = foundText;
-        }
-        if (entry.meanings && entry.meanings.length > 0) {
-          const pos = entry.meanings[0].partOfSpeech?.toLowerCase() || '';
-          if (pos.includes('noun')) {
-            word_type = 'Danh từ';
-          } else if (pos.includes('verb')) {
-            word_type = 'Động từ';
-          } else if (pos.includes('adjective')) {
-            word_type = 'Tính từ';
-          } else if (pos.includes('adverb')) {
-            word_type = 'Phó từ';
-          } else if (pos.includes('pronoun')) {
-            word_type = 'Đại từ';
-          } else if (pos.includes('preposition')) {
-            word_type = 'Giới từ';
-          } else if (pos.includes('conjunction')) {
-            word_type = 'Liên từ';
-          } else if (pos.includes('interjection')) {
-            word_type = 'Thán từ';
-          } else if (pos.includes('numeral') || pos.includes('number') || pos.includes('cardinal')) {
-            word_type = 'Lượng từ';
-          } else {
-            word_type = 'Khác';
+    const prompt = `Bạn là chuyên gia ngôn ngữ Anh - Việt. Hãy dịch từ tiếng Anh: "${searchWord}".
+Hãy phân tích và trả về kết quả dưới dạng đối tượng JSON với đúng các thuộc tính sau:
+- "transliteration": Phiên âm IPA chuẩn tiếng Anh (ví dụ: "/smīl/" hoặc "/æp.əl/").
+- "meaning": Nghĩa tiếng Việt chuẩn, tự nhiên nhất (ví dụ: "mỉm cười" hoặc "quả táo").
+- "word_type": Loại từ tiếng Việt (ví dụ: "Danh từ", "Động từ", "Tính từ", "Phó từ", "Giới từ", v.v.).
+
+Chỉ trả về chuỗi JSON thô, không định dạng markdown hay bất kỳ văn bản nào khác.`;
+
+    const text = await fetchGeminiContent(prompt, true);
+    const parsed = JSON.parse(text);
+    if (parsed.meaning) {
+      transliteration = parsed.transliteration || '';
+      meaning = parsed.meaning.trim();
+      word_type = parsed.word_type ? parsed.word_type.trim() : 'Danh từ';
+      geminiSuccess = true;
+    }
+  } catch (err) {
+    console.warn('Gemini primary translation for English failed, falling back to Google Translate/Dictionary API:', err);
+  }
+
+  // Lớp 2 (Dự phòng): Nếu Gemini lỗi/hết limit, dùng Dictionary API + Google Translate + MyMemory
+  if (!geminiSuccess) {
+    // 1. Dictionary phonetic & POS
+    try {
+      const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(searchWord)}`);
+      if (dictRes.ok) {
+        const dictData = await dictRes.json();
+        if (Array.isArray(dictData) && dictData.length > 0) {
+          const entry = dictData[0];
+          transliteration = entry.phonetic || '';
+          if (!transliteration && entry.phonetics) {
+            const foundText = entry.phonetics.find((p: any) => p.text && p.text.trim())?.text;
+            if (foundText) transliteration = foundText;
+          }
+          if (entry.meanings && entry.meanings.length > 0) {
+            const pos = entry.meanings[0].partOfSpeech?.toLowerCase() || '';
+            if (pos.includes('noun')) {
+              word_type = 'Danh từ';
+            } else if (pos.includes('verb')) {
+              word_type = 'Động từ';
+            } else if (pos.includes('adjective')) {
+              word_type = 'Tính từ';
+            } else if (pos.includes('adverb')) {
+              word_type = 'Phó từ';
+            } else if (pos.includes('pronoun')) {
+              word_type = 'Đại từ';
+            } else if (pos.includes('preposition')) {
+              word_type = 'Giới từ';
+            } else if (pos.includes('conjunction')) {
+              word_type = 'Liên từ';
+            } else if (pos.includes('interjection')) {
+              word_type = 'Thán từ';
+            } else if (pos.includes('numeral') || pos.includes('number') || pos.includes('cardinal')) {
+              word_type = 'Lượng từ';
+            } else {
+              word_type = 'Khác';
+            }
           }
         }
       }
+    } catch (err) {
+      console.error('Error fetching Dictionary API:', err);
     }
-  } catch (err) {
-    console.error('Error fetching Dictionary API:', err);
-  }
-  
-  // 2. Google single translation
-  try {
-    const translateRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(searchWord)}`).catch(() => null);
-    if (translateRes && translateRes.ok) {
-      const translateData = await translateRes.json();
-      if (Array.isArray(translateData) && translateData[0] && translateData[0][0]) {
-        meaning = translateData[0][0][0] || '';
-      }
-    }
-  } catch (err) {
-    console.error('Error fetching Google Translate:', err);
-  }
-
-  // 3. Fallback to MyMemory if Google Translate fails
-  if (!meaning) {
+    
+    // 2. Google single translation
     try {
-      const myMemoryRes = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(searchWord)}&langpair=en|vi`).catch(() => null);
-      if (myMemoryRes && myMemoryRes.ok) {
-        const myMemoryData = await myMemoryRes.json();
-        const translatedText = myMemoryData?.responseData?.translatedText?.trim();
-        if (translatedText && !translatedText.includes('MYMEMORY WARNING')) {
-          meaning = translatedText;
+      const translateRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(searchWord)}`).catch(() => null);
+      if (translateRes && translateRes.ok) {
+        const translateData = await translateRes.json();
+        if (Array.isArray(translateData) && translateData[0] && translateData[0][0]) {
+          meaning = translateData[0][0][0] || '';
         }
       }
     } catch (err) {
-      console.error('Failed to translate using MyMemory fallback:', err);
+      console.error('Error fetching Google Translate:', err);
+    }
+
+    // 3. Fallback to MyMemory if Google Translate fails
+    if (!meaning) {
+      try {
+        const myMemoryRes = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(searchWord)}&langpair=en|vi`).catch(() => null);
+        if (myMemoryRes && myMemoryRes.ok) {
+          const myMemoryData = await myMemoryRes.json();
+          const translatedText = myMemoryData?.responseData?.translatedText?.trim();
+          if (translatedText && !translatedText.includes('MYMEMORY WARNING')) {
+            meaning = translatedText;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to translate using MyMemory fallback:', err);
+      }
     }
   }
   
@@ -518,9 +592,8 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
       word: word.trim(),
       transliteration: transliteration || '',
       meaning: meaning || '',
-      word_type
+      word_type: word_type || 'Danh từ'
     };
-    englishDictMap.set(searchWord, dynamicMatch);
     return {
       ...dynamicMatch,
       suggestions
@@ -528,7 +601,7 @@ export async function lookupEnglishWord(word: string): Promise<EnglishMatch> {
   }
   
   return {
-    word,
+    word: word.trim(),
     transliteration: '',
     meaning: '',
     word_type: 'Danh từ',
