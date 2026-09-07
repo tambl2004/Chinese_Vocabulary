@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Vocabulary, VocabularyInput } from '../utils/api';
+import type { Vocabulary, VocabularyInput, Session } from '../utils/api';
 import { lookupChineseWord } from '../utils/dictionary';
 
 interface WordModalProps {
@@ -8,26 +8,29 @@ interface WordModalProps {
   onClose: () => void;
   onSave: (word: Partial<VocabularyInput>) => Promise<void>;
   editingWord: Vocabulary | null;
+  sessions?: Session[];
+  currentSessionId?: number | 'all';
 }
 
 export const WordModal: React.FC<WordModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  editingWord
+  editingWord,
+  sessions = [],
+  currentSessionId
 }) => {
   const [chinese, setChinese] = useState('');
   const [pinyin, setPinyin] = useState('');
   const [hanViet, setHanViet] = useState('');
   const [meaning, setMeaning] = useState('');
   const [memoryLevel, setMemoryLevel] = useState<'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ'>('Dễ quên');
-  const [studyDate, setStudyDate] = useState('');
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const [wordType, setWordType] = useState('Danh từ');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [alternatives, setAlternatives] = useState<string[]>([]);
   const [example, setExample] = useState<{ sentence: string; translation: string; pinyin?: string } | null>(null);
-
 
   // Auto-fill details using Backend Lookup API
   const autoFillDetails = async (word: string) => {
@@ -58,7 +61,6 @@ export const WordModal: React.FC<WordModalProps> = ({
     }
   };
 
-
   useEffect(() => {
     if (editingWord) {
       setChinese(editingWord.chinese);
@@ -67,7 +69,7 @@ export const WordModal: React.FC<WordModalProps> = ({
       setMeaning(editingWord.meaning);
       setWordType(editingWord.word_type || 'Danh từ');
       setMemoryLevel(editingWord.memory_level);
-      setStudyDate(editingWord.study_date || new Date().toISOString().split('T')[0]);
+      setSessionId(editingWord.session_id || null);
       setAlternatives([]);
       setExample(editingWord.example || null);
     } else {
@@ -77,12 +79,13 @@ export const WordModal: React.FC<WordModalProps> = ({
       setMeaning('');
       setWordType('Danh từ');
       setMemoryLevel('Dễ quên');
-      setStudyDate(new Date().toISOString().split('T')[0]);
+      const defaultSId = typeof currentSessionId === 'number' ? currentSessionId : (sessions[0]?.id || null);
+      setSessionId(defaultSId);
       setAlternatives([]);
       setExample(null);
     }
     setError('');
-  }, [editingWord, isOpen]);
+  }, [editingWord, isOpen, currentSessionId, sessions]);
 
   if (!isOpen) return null;
 
@@ -103,7 +106,8 @@ export const WordModal: React.FC<WordModalProps> = ({
         meaning: meaning.trim(),
         word_type: wordType,
         memory_level: memoryLevel,
-        study_date: studyDate || null,
+        session_id: sessionId,
+        study_date: editingWord?.study_date || new Date().toISOString().split('T')[0],
         example: example
       });
       onClose();
@@ -275,16 +279,22 @@ export const WordModal: React.FC<WordModalProps> = ({
               </div>
 
               <div>
-                <label htmlFor="studyDate" className="block text-xs font-semibold text-text-muted mb-1.5">
-                  Ngày học
+                <label htmlFor="sessionId" className="block text-xs font-semibold text-text-muted mb-1.5">
+                  Buổi học
                 </label>
-                <input
-                  id="studyDate"
-                  type="date"
-                  value={studyDate}
-                  onChange={(e) => setStudyDate(e.target.value)}
+                <select
+                  id="sessionId"
+                  value={sessionId || ''}
+                  onChange={(e) => setSessionId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3.5 py-2 text-sm text-text-charcoal bg-slate-50/50 border border-slate-200 rounded"
-                />
+                >
+                  <option value="">-- Chưa thuộc buổi nào --</option>
+                  {sessions.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.word_count || 0} từ)
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

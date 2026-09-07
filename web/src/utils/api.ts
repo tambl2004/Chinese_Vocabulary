@@ -1,5 +1,15 @@
 import { supabase } from '../lib/supabase';
 
+export interface Session {
+  id: number;
+  user_id: string;
+  name: string;
+  type: 'chinese' | 'english';
+  created_at: string;
+  updated_at?: string;
+  word_count?: number;
+}
+
 export interface Vocabulary {
   id: number;
   user_id: string;
@@ -10,6 +20,7 @@ export interface Vocabulary {
   word_type: string | null;
   memory_level: 'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ';
   study_date: string | null; // YYYY-MM-DD
+  session_id?: number | null;
   last_reviewed_at: string | null; // YYYY-MM-DD
   example?: { sentence: string; translation: string; pinyin?: string } | null;
   created_at: string;
@@ -27,6 +38,7 @@ export interface EnglishVocabulary {
   word_type: string | null;
   memory_level: 'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ';
   study_date: string | null; // YYYY-MM-DD
+  session_id?: number | null;
   last_reviewed_at: string | null; // YYYY-MM-DD
   example?: { sentence: string; translation: string } | null;
   created_at: string;
@@ -244,6 +256,75 @@ export async function fetchStats(userId: string | number) {
   return stats;
 }
 
+// Sessions API
+export async function fetchSessions(userId: string | number, type: 'chinese' | 'english') {
+  const uid = userId.toString();
+  const { data: sessions, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('user_id', uid)
+    .eq('type', type)
+    .order('id', { ascending: true });
+
+  if (error) throw error;
+
+  const tableName = type === 'chinese' ? 'vocabularies' : 'english_vocabularies';
+  const { data: vocabs } = await supabase
+    .from(tableName)
+    .select('session_id')
+    .eq('user_id', uid);
+
+  const countsMap: Record<number, number> = {};
+  vocabs?.forEach(v => {
+    if (v.session_id) {
+      countsMap[v.session_id] = (countsMap[v.session_id] || 0) + 1;
+    }
+  });
+
+  return (sessions as Session[]).map(s => ({
+    ...s,
+    word_count: countsMap[s.id] || 0
+  }));
+}
+
+export async function addSession(name: string, type: 'chinese' | 'english') {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .insert([{
+      name: name.trim(),
+      type,
+      user_id: user.id
+    }])
+    .select();
+
+  if (error) throw error;
+  return data[0] as Session;
+}
+
+export async function updateSession(id: number, name: string) {
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({ name: name.trim(), updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select();
+
+  if (error) throw error;
+  return data[0] as Session;
+}
+
+export async function deleteSession(id: number) {
+  const { error } = await supabase
+    .from('sessions')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return { message: 'Deleted session successfully', id };
+}
+
 export async function fetchDates(userId: string | number) {
   const uid = userId.toString();
   const { data, error } = await supabase
@@ -258,7 +339,7 @@ export async function fetchDates(userId: string | number) {
   return Array.from(datesSet).sort().reverse();
 }
 
-export async function fetchVocabularies(userId: string | number, params?: { search?: string; memory_level?: string; study_date?: string }) {
+export async function fetchVocabularies(userId: string | number, params?: { search?: string; memory_level?: string; study_date?: string; session_id?: number | string }) {
   const uid = userId.toString();
   let query = supabase.from('vocabularies').select('*').eq('user_id', uid);
 
@@ -270,7 +351,9 @@ export async function fetchVocabularies(userId: string | number, params?: { sear
     if (params.memory_level && params.memory_level !== 'all') {
       query = query.eq('memory_level', params.memory_level);
     }
-    if (params.study_date && params.study_date !== 'all') {
+    if (params.session_id !== undefined && params.session_id !== 'all') {
+      query = query.eq('session_id', params.session_id);
+    } else if (params.study_date && params.study_date !== 'all') {
       query = query.eq('study_date', params.study_date);
     }
   }
@@ -367,7 +450,7 @@ export async function fetchEnglishDates(userId: string | number) {
   return Array.from(datesSet).sort().reverse();
 }
 
-export async function fetchEnglishVocabularies(userId: string | number, params?: { search?: string; memory_level?: string; study_date?: string }) {
+export async function fetchEnglishVocabularies(userId: string | number, params?: { search?: string; memory_level?: string; study_date?: string; session_id?: number | string }) {
   const uid = userId.toString();
   let query = supabase.from('english_vocabularies').select('*').eq('user_id', uid);
 
@@ -379,7 +462,9 @@ export async function fetchEnglishVocabularies(userId: string | number, params?:
     if (params.memory_level && params.memory_level !== 'all') {
       query = query.eq('memory_level', params.memory_level);
     }
-    if (params.study_date && params.study_date !== 'all') {
+    if (params.session_id !== undefined && params.session_id !== 'all') {
+      query = query.eq('session_id', params.session_id);
+    } else if (params.study_date && params.study_date !== 'all') {
       query = query.eq('study_date', params.study_date);
     }
   }

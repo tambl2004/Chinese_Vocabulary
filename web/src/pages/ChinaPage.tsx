@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Upload, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Upload, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, BookOpen, ChevronDown } from 'lucide-react';
 import {
   fetchVocabularies,
   fetchStats,
@@ -8,7 +8,12 @@ import {
   addVocabulariesBulk,
   updateVocabulary,
   deleteVocabulary,
-  type Vocabulary
+  fetchSessions,
+  addSession,
+  updateSession,
+  deleteSession,
+  type Vocabulary,
+  type Session
 } from '../utils/api';
 import StatsCard from '../components/StatsCard';
 import VocabularyTable from '../components/VocabularyTable';
@@ -16,48 +21,24 @@ import WordModal from '../components/WordModal';
 import StudySession from '../components/StudySession';
 import ConfirmModal from '../components/ConfirmModal';
 import StudyOptionsModal from '../components/StudyOptionsModal';
+import SessionPickerModal from '../components/SessionPickerModal';
 import { lookupChineseWord } from '../utils/dictionary';
 import * as XLSX from 'xlsx';
-
-const getLocalDateString = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 export const ChinaPage = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const todayString = getLocalDateString();
   const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
   const [stats, setStats] = useState({ total: 0, rat_nho: 0, nho: 0, hoi_nho: 0, de_quen: 0 });
 
   const [globalSearch, setGlobalSearch] = useState('');
   const [tableSearch, setTableSearch] = useState('');
-  const [selectedDate, setSelectedDate] = useState<string>(todayString);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | 'all'>('all');
   const [selectedMemoryLevel, setSelectedMemoryLevel] = useState<string>('all');
 
-  const handlePrevDay = () => {
-    if (selectedDate === 'all') {
-      setSelectedDate(todayString);
-      return;
-    }
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
-
-  const handleNextDay = () => {
-    if (selectedDate === 'all') {
-      setSelectedDate(todayString);
-      return;
-    }
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
+  // Session Picker Modal state
+  const [isSessionPickerOpen, setIsSessionPickerOpen] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWord, setEditingWord] = useState<Vocabulary | null>(null);
@@ -102,6 +83,17 @@ export const ChinaPage = () => {
     setCurrentUser(user);
   }, [navigate]);
 
+  const loadSessions = async (userId: string) => {
+    try {
+      const list = await fetchSessions(userId, 'chinese');
+      setSessions(list);
+      return list;
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+      return [];
+    }
+  };
+
   // Load all data from API
   const loadData = async () => {
     if (!currentUser) return;
@@ -110,10 +102,13 @@ export const ChinaPage = () => {
       const statsData = await fetchStats(currentUser.id);
       setStats(statsData);
 
-      // Fetch vocabularies with current active query parameters (globalSearch, date filter, memory level)
+      // Fetch sessions list
+      await loadSessions(currentUser.id);
+
+      // Fetch vocabularies with active params
       const params: any = {};
       if (globalSearch.trim()) params.search = globalSearch;
-      if (selectedDate !== 'all') params.study_date = selectedDate;
+      if (selectedSessionId !== 'all') params.session_id = selectedSessionId;
       if (selectedMemoryLevel !== 'all') params.memory_level = selectedMemoryLevel;
 
       const vocabData = await fetchVocabularies(currentUser.id, params);
@@ -128,7 +123,7 @@ export const ChinaPage = () => {
     if (currentUser) {
       loadData();
     }
-  }, [globalSearch, selectedDate, selectedMemoryLevel, currentUser]);
+  }, [globalSearch, selectedSessionId, selectedMemoryLevel, currentUser]);
 
   // Client-side local filtering based on "Filter table..." input
   const filteredVocabularies = useMemo(() => {
@@ -142,7 +137,6 @@ export const ChinaPage = () => {
         word.meaning.toLowerCase().includes(query)
     );
   }, [vocabularies, tableSearch]);
-
   const handleOpenAddModal = () => {
     setEditingWord(null);
     setIsModalOpen(true);
@@ -162,7 +156,8 @@ export const ChinaPage = () => {
       } else {
         await addVocabulary({
           ...wordData,
-          user_id: currentUser.id
+          user_id: currentUser.id,
+          session_id: wordData.session_id !== undefined ? wordData.session_id : (typeof selectedSessionId === 'number' ? selectedSessionId : null)
         });
         showToast('Thêm từ vựng mới thành công!', 'success');
       }
@@ -196,11 +191,9 @@ export const ChinaPage = () => {
 
   const handleUpdateLevel = async (id: number, level: Vocabulary['memory_level']) => {
     try {
-      // Update memory level only (original study date is preserved)
       await updateVocabulary(id, {
         memory_level: level
       });
-      // Refresh local data to keep everything sync
       await loadData();
     } catch (error) {
       showToast('Cập nhật mức độ nhớ thất bại!', 'error');
@@ -212,7 +205,6 @@ export const ChinaPage = () => {
   const handleUpdateExample = async (id: number, example: any) => {
     try {
       await updateVocabulary(id, { example });
-      // Refresh local data to keep everything sync
       await loadData();
     } catch (error) {
       showToast('Lưu câu ví dụ thất bại!', 'error');
@@ -340,7 +332,8 @@ export const ChinaPage = () => {
             meaning: meaningVal || '---',
             word_type: wordTypeVal,
             memory_level: 'Dễ quên' as const,
-            study_date: getLocalDateString()
+            study_date: new Date().toISOString().split('T')[0],
+            session_id: typeof selectedSessionId === 'number' ? selectedSessionId : null
           };
         });
 
@@ -371,10 +364,8 @@ export const ChinaPage = () => {
 
   return (
     <div className="min-h-screen bg-[#f7f9fb] flex flex-col font-sans">
-      {/* Header */}
       <header className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-30">
         <div className="max-w-[1200px] mx-auto px-safe py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Left: Logo & Switcher */}
           <div className="flex items-center justify-between md:justify-start gap-4 w-full md:w-auto">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/china')}>
               <img src="/images/logo-china.png" alt="Logo" className="w-8 h-8 object-contain" />
@@ -383,7 +374,6 @@ export const ChinaPage = () => {
               </h1>
             </div>
             
-            {/* Language Toggle */}
             <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
               <button 
                 onClick={() => navigate('/china')}
@@ -400,7 +390,6 @@ export const ChinaPage = () => {
             </div>
           </div>
 
-          {/* Right: Search & Actions */}
           <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:flex-initial max-w-[200px] md:max-w-[240px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -418,7 +407,7 @@ export const ChinaPage = () => {
               className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
             >
               <Plus size={14} />
-              Thêm từ mới
+              <span className="hidden sm:inline">Thêm từ mới</span>
             </button>
 
             <button
@@ -426,7 +415,7 @@ export const ChinaPage = () => {
               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95"
             >
               <Upload size={14} />
-              Nhập Excel
+              <span className="hidden sm:inline">Nhập Excel</span>
             </button>
             <input 
               type="file"
@@ -447,9 +436,7 @@ export const ChinaPage = () => {
         </div>
       </header>
 
-      {/* Main Container */}
       <main className="flex-1 max-w-[1200px] w-full mx-auto px-safe py-8 animate-in fade-in duration-300">
-        {/* Progress Stats Card */}
         <StatsCard
           total={stats.total}
           ratNho={stats.rat_nho || 0}
@@ -461,13 +448,11 @@ export const ChinaPage = () => {
           }
           onStatClick={(level) => {
             setSelectedMemoryLevel(level);
-            setSelectedDate('all');
+            setSelectedSessionId('all');
           }}
         />
 
-        {/* Filters and Controls */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-          {/* Table local filter */}
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
@@ -479,37 +464,20 @@ export const ChinaPage = () => {
             />
           </div>
 
-          {/* Date Navigation & Memory Filter */}
           <div className="flex flex-row flex-wrap items-center gap-3 self-stretch sm:self-auto justify-start sm:justify-end">
-            
-            {/* Date Nav */}
-            <div className="flex items-center bg-white border border-slate-200 rounded shadow-xs p-1">
-              <button onClick={handlePrevDay} className="p-1 hover:bg-slate-100 rounded text-slate-500" title="Ngày hôm trước">
-                <ChevronLeft size={16} />
-              </button>
-              
-              <div className="relative mx-1">
-                <input
-                  type="date"
-                  value={selectedDate === 'all' ? '' : selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value || 'all')}
-                  className="px-2 py-1 text-sm text-text-charcoal bg-transparent border-none focus:ring-0 outline-none cursor-pointer min-w-[110px]"
-                />
-              </div>
-
-              <button onClick={handleNextDay} className="p-1 hover:bg-slate-100 rounded text-slate-500" title="Ngày hôm sau">
-                <ChevronRight size={16} />
-              </button>
-              
-              <div className="w-px h-4 bg-slate-300 mx-1"></div>
-              
-              <button 
-                onClick={() => setSelectedDate('all')}
-                className={`px-3 py-1 text-xs font-semibold rounded ${selectedDate === 'all' ? 'bg-primary text-white' : 'hover:bg-slate-100 text-slate-600'}`}
-              >
-                Tất cả
-              </button>
-            </div>
+            {/* Session Selection Trigger Button */}
+            <button
+              onClick={() => setIsSessionPickerOpen(true)}
+              className="px-3.5 py-2 text-sm bg-white border border-slate-200 hover:border-primary/50 rounded-lg shadow-xs flex items-center gap-2 transition cursor-pointer group"
+            >
+              <BookOpen size={16} className="text-primary group-hover:scale-110 transition" />
+              <span className="font-bold text-text-charcoal">
+                {selectedSessionId === 'all'
+                  ? `Tất cả các buổi (${stats.total} từ)`
+                  : `${sessions.find(s => s.id === selectedSessionId)?.name || 'Buổi học'} (${sessions.find(s => s.id === selectedSessionId)?.word_count || 0} từ)`}
+              </span>
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
 
             {/* Memory Filter */}
             <div className="flex items-center gap-2">
@@ -543,9 +511,37 @@ export const ChinaPage = () => {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveWord}
         editingWord={editingWord}
+        sessions={sessions}
+        currentSessionId={selectedSessionId}
       />
 
-      {/* Flashcard Study Overlay Session */}
+      {/* Session Picker & Manager Modal */}
+      <SessionPickerModal
+        isOpen={isSessionPickerOpen}
+        onClose={() => setIsSessionPickerOpen(false)}
+        sessions={sessions}
+        selectedSessionId={selectedSessionId}
+        onSelectSession={(id) => setSelectedSessionId(id)}
+        onAddSession={async (name) => {
+          const created = await addSession(name, 'chinese');
+          showToast('Thêm buổi học mới thành công!', 'success');
+          setSelectedSessionId(created.id);
+          await loadData();
+        }}
+        onEditSession={async (id, newName) => {
+          await updateSession(id, newName);
+          showToast('Cập nhật tên buổi học thành công!', 'success');
+          await loadData();
+        }}
+        onDeleteSession={async (id) => {
+          await deleteSession(id);
+          showToast('Đã xóa buổi học!', 'success');
+          if (selectedSessionId === id) setSelectedSessionId('all');
+          await loadData();
+        }}
+        totalWordsCount={stats.total}
+      />
+
       {isStudyMode && (
         <StudySession
           vocabularies={studyVocabularies}
