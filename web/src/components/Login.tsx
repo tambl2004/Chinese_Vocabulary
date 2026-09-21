@@ -10,7 +10,7 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (targetPath: '/china' | '/english') => {
+  const handleLogin = async (type: 'chinese' | 'english') => {
     if (!username.trim() || !password.trim()) {
       setError('Vui lòng điền đầy đủ tên đăng nhập và mật khẩu.');
       return;
@@ -23,7 +23,7 @@ export const Login: React.FC = () => {
 
       if (data.success) {
         localStorage.setItem('currentUser', JSON.stringify(data.user));
-        navigate(targetPath);
+        navigate(`/topics?type=${type}`);
       }
     } catch (err: any) {
       setError(err.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
@@ -92,7 +92,7 @@ export const Login: React.FC = () => {
                 disabled={isLoading}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    handleLogin('/china');
+                    handleLogin('chinese');
                   }
                 }}
               />
@@ -105,21 +105,21 @@ export const Login: React.FC = () => {
           <button
             type="button"
             disabled={isLoading}
-            onClick={() => handleLogin('/china')}
+            onClick={() => handleLogin('chinese')}
             className="py-3 px-4 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-bold rounded shadow-sm hover:shadow transition duration-200 flex flex-col items-center justify-center gap-1 cursor-pointer animate-in fade-in"
           >
             <span>Tiếng Trung</span>
-            <span className="text-[10px] opacity-80 font-normal">Chuyển sang /china</span>
+            <span className="text-[10px] opacity-80 font-normal">Chọn chủ đề tiếng Trung</span>
           </button>
 
           <button
             type="button"
             disabled={isLoading}
-            onClick={() => handleLogin('/english')}
+            onClick={() => handleLogin('english')}
             className="py-3 px-4 bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white text-xs font-bold rounded shadow-sm hover:shadow transition duration-200 flex flex-col items-center justify-center gap-1 cursor-pointer animate-in fade-in"
           >
             <span>Tiếng Anh</span>
-            <span className="text-[10px] opacity-80 font-normal">Chuyển sang /english</span>
+            <span className="text-[10px] opacity-80 font-normal">Chọn chủ đề tiếng Anh</span>
           </button>
         </div>
       </div>

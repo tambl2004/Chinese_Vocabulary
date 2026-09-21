@@ -39,6 +39,14 @@ export const StudySession: React.FC<StudySessionProps> = ({
     }
   }, [currentIndex, hasCompleted]);
 
+  // Flip card (front <-> back) and pronounce word
+  const handleCardFlip = () => {
+    setShowAnswer((prev) => !prev);
+    if (currentWord) {
+      speakChinese(currentWord.chinese);
+    }
+  };
+
   // Load/Reset example states when current word changes
   useEffect(() => {
     if (currentWord && currentWord.example) {
@@ -178,51 +186,105 @@ export const StudySession: React.FC<StudySessionProps> = ({
           // Active review card
           <div className="flex flex-col items-center max-w-lg w-full">
             {/* The Level 1 Study Card */}
-            <div className="bg-white rounded-card shadow-soft border border-slate-100 w-full p-8 md:p-10 mb-6 flex flex-col items-center relative transition-all duration-300 min-h-[380px] justify-between">
+            <div
+              onClick={handleCardFlip}
+              className="bg-gradient-to-br from-white via-white to-emerald-50/20 rounded-3xl shadow-[0_10px_35px_rgba(0,0,0,0.05)] border border-slate-100/90 w-full p-6 md:p-8 mb-5 flex flex-col items-center relative transition-all duration-300 min-h-[400px] justify-between cursor-pointer group active:scale-[0.995] overflow-hidden"
+            >
+              {/* Organic Waves Decorative Accent in Top-Left Corner (Mirrored) */}
+              <div className="absolute -top-4 -left-4 w-48 h-48 pointer-events-none overflow-hidden rounded-tl-3xl opacity-80 z-0 rotate-180">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                  <path
+                    fill="rgba(209, 250, 229, 0.5)"
+                    d="M0 200 C70 170, 110 130, 200 70 L200 200 Z"
+                  />
+                  <path
+                    fill="rgba(167, 243, 208, 0.4)"
+                    d="M30 200 C90 180, 130 110, 200 35 L200 200 Z"
+                  />
+                  <path
+                    fill="rgba(52, 211, 153, 0.2)"
+                    d="M70 200 C120 185, 150 95, 200 0 L200 200 Z"
+                  />
+                </svg>
+              </div>
 
-              {/* Pronunciation Float Button */}
-              <button
-                onClick={() => speakChinese(currentWord.chinese)}
-                title="Nghe phát âm"
-                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-primary hover:bg-teal-50 rounded-full transition duration-150"
-              >
-                <Volume2 size={20} />
-              </button>
+              {/* Organic Waves Decorative Accent in Bottom-Right Corner */}
+              <div className="absolute -bottom-4 -right-4 w-60 h-60 pointer-events-none overflow-hidden rounded-br-3xl opacity-90 z-0">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                  <path
+                    fill="rgba(209, 250, 229, 0.6)"
+                    d="M0 200 C70 170, 110 130, 200 70 L200 200 Z"
+                  />
+                  <path
+                    fill="rgba(167, 243, 208, 0.5)"
+                    d="M30 200 C90 180, 130 110, 200 35 L200 200 Z"
+                  />
+                  <path
+                    fill="rgba(52, 211, 153, 0.25)"
+                    d="M70 200 C120 185, 150 95, 200 0 L200 200 Z"
+                  />
+                </svg>
+              </div>
 
-              {/* Chinese Character */}
-              <div className="flex-1 flex items-center justify-center py-6">
-                <span className="font-chinese text-7xl md:text-8xl font-medium text-primary tracking-wide leading-none select-none select-all">
+              {/* Card Header Row */}
+              <div className="w-full flex items-center justify-between z-10 pt-1">
+                <span className="text-[11px] font-bold text-slate-400 bg-slate-100/80 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  THẺ {currentIndex + 1}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakChinese(currentWord.chinese);
+                  }}
+                  title="Nghe phát âm"
+                  className="p-2 text-primary bg-emerald-50 hover:bg-primary hover:text-white rounded-full transition duration-200 cursor-pointer shadow-2xs"
+                >
+                  <Volume2 size={18} />
+                </button>
+              </div>
+
+              {/* Chinese Character Display */}
+              <div className="flex-1 flex flex-col items-center justify-center py-6 z-10">
+                <span className="font-chinese text-7xl md:text-8xl font-bold text-primary tracking-wide leading-none select-none drop-shadow-xs group-hover:scale-105 transition-transform duration-300">
                   {currentWord.chinese}
                 </span>
+                {!showAnswer && (
+                  <p className="text-[11px] font-medium text-slate-400 mt-4 animate-pulse">
+                    Chạm vào thẻ để lật xem đáp án
+                  </p>
+                )}
               </div>
 
               {/* Toggleable Details Panel */}
-              <div className="w-full">
+              <div className="w-full z-10 relative">
                 {showAnswer ? (
-                  <div className="w-full border-t border-slate-100 pt-6 animate-in fade-in slide-in-from-bottom-2 duration-200 text-center">
+                  <div className="w-full border-t border-slate-100 pt-5 animate-in fade-in slide-in-from-bottom-2 duration-200 text-center">
                     
                     {/* Ví dụ Section */}
-                    <div className="w-full mb-5 text-center">
-                      <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-2">Ví dụ</span>
+                    <div className="w-full mb-4 text-center">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Ví dụ câu</span>
                       {example ? (
-                        <div className="bg-slate-50 rounded-lg p-4 border border-slate-100/80 text-center animate-in fade-in duration-200">
-                          <p className="font-chinese text-xl text-primary font-medium mb-1 select-all">
+                        <div className="bg-emerald-50/40 rounded-2xl p-4 border border-emerald-100/80 text-center animate-in fade-in duration-200">
+                          <p className="font-chinese text-lg text-primary font-bold mb-1 select-all">
                             {example.sentence}
                           </p>
                           {example.pinyin && (
-                            <p className="text-xs text-text-muted italic mb-1.5 font-medium select-all">
+                            <p className="text-xs text-slate-500 italic mb-1.5 font-medium select-all">
                               {example.pinyin}
                             </p>
                           )}
                           <p className="text-sm text-text-charcoal font-semibold select-all mb-2">
                             {example.translation}
                           </p>
-                          <div className="flex justify-center mt-2 border-t border-slate-200/50 pt-2">
+                          <div className="flex justify-center mt-2 border-t border-emerald-200/40 pt-2">
                             <button
                               type="button"
-                              onClick={handleGenerateExample}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGenerateExample();
+                              }}
                               disabled={isLoadingExample}
-                              className="px-2.5 py-1 bg-white hover:bg-slate-100 disabled:opacity-50 text-slate-500 hover:text-slate-700 rounded-md text-[10px] font-bold transition duration-150 cursor-pointer inline-flex items-center gap-1 border border-slate-200/60 shadow-xs"
+                              className="px-3 py-1 bg-white hover:bg-slate-100 disabled:opacity-50 text-slate-600 hover:text-slate-800 rounded-lg text-[10px] font-bold transition duration-150 cursor-pointer inline-flex items-center gap-1 border border-slate-200/80 shadow-2xs"
                             >
                               {isLoadingExample ? (
                                 <>
@@ -236,12 +298,15 @@ export const StudySession: React.FC<StudySessionProps> = ({
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-2">
+                        <div className="flex flex-col items-center justify-center py-1">
                           <button
                             type="button"
-                            onClick={handleGenerateExample}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGenerateExample();
+                            }}
                             disabled={isLoadingExample}
-                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-lg text-xs font-bold transition duration-150 cursor-pointer inline-flex items-center gap-1.5 shadow-xs border border-slate-200/50"
+                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-xl text-xs font-bold transition duration-150 cursor-pointer inline-flex items-center gap-1.5 shadow-2xs border border-slate-200/60"
                           >
                             {isLoadingExample ? (
                               <>
@@ -261,31 +326,35 @@ export const StudySession: React.FC<StudySessionProps> = ({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-4 gap-4 border-t border-slate-100 pt-5">
-                      <div>
-                        <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-1">Phiên âm</span>
-                        <span className="text-sm md:text-base font-bold text-text-charcoal">{currentWord.pinyin}</span>
+                    {/* Details Cards Grid */}
+                    <div className="grid grid-cols-4 gap-2 border-t border-slate-100 pt-4 items-start">
+                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 text-center min-h-[58px] flex flex-col justify-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Phiên âm</span>
+                        <span className="text-xs md:text-sm font-bold text-primary block leading-tight break-words">{currentWord.pinyin}</span>
                       </div>
-                      <div>
-                        <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-1">Hán Việt</span>
-                        <span className="text-sm md:text-base font-bold text-text-charcoal">{currentWord.han_viet}</span>
+                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 text-center min-h-[58px] flex flex-col justify-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Hán Việt</span>
+                        <span className="text-xs md:text-sm font-bold text-text-charcoal block leading-tight break-words">{currentWord.han_viet}</span>
                       </div>
-                      <div>
-                        <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-1">Nghĩa</span>
-                        <span className="text-sm md:text-base font-bold text-text-charcoal">{currentWord.meaning}</span>
+                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 text-center min-h-[58px] flex flex-col justify-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Nghĩa</span>
+                        <span className="text-xs md:text-sm font-bold text-emerald-700 block leading-tight break-words">{currentWord.meaning}</span>
                       </div>
-                      <div>
-                        <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-1">Từ loại</span>
-                        <span className="text-sm md:text-base font-bold text-text-charcoal lowercase">{currentWord.word_type || '---'}</span>
+                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 text-center min-h-[58px] flex flex-col justify-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Từ loại</span>
+                        <span className="text-xs md:text-sm font-bold text-slate-600 block lowercase leading-tight break-words">{currentWord.word_type || '---'}</span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <button
-                    onClick={() => setShowAnswer(true)}
-                    className="w-full py-4 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-bold uppercase tracking-wider transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow hover:scale-[1.01] transform"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCardFlip();
+                    }}
+                    className="w-full py-3.5 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl text-xs font-bold uppercase tracking-wider transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md hover:shadow-lg active:scale-98"
                   >
-                    <Eye size={14} />
+                    <Eye size={15} />
                     Xem đáp án
                   </button>
                 )}
@@ -298,30 +367,34 @@ export const StudySession: React.FC<StudySessionProps> = ({
                 <button
                   onClick={() => handleUpdate('Dễ quên')}
                   disabled={isUpdating}
-                  className="py-3 px-1.5 bg-status-red-bg border border-red-200 text-status-red-text font-bold text-[11px] rounded-lg hover:shadow-sm transition-all duration-150 hover:scale-[1.01] cursor-pointer"
+                  className="py-3 px-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 text-rose-700 font-bold text-xs rounded-xl shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-95 cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1"
                 >
-                  Dễ quên
+                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                  <span>Dễ quên</span>
                 </button>
                 <button
                   onClick={() => handleUpdate('Hơi nhớ')}
                   disabled={isUpdating}
-                  className="py-3 px-1.5 bg-status-yellow-bg border border-amber-200 text-status-yellow-text font-bold text-[11px] rounded-lg hover:shadow-sm transition-all duration-150 hover:scale-[1.01] cursor-pointer"
+                  className="py-3 px-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-700 font-bold text-xs rounded-xl shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-95 cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1"
                 >
-                  Hơi nhớ
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                  <span>Hơi nhớ</span>
                 </button>
                 <button
                   onClick={() => handleUpdate('Nhớ')}
                   disabled={isUpdating}
-                  className="py-3 px-1.5 bg-status-green-bg border border-teal-200 text-status-green-text font-bold text-[11px] rounded-lg hover:shadow-sm transition-all duration-150 hover:scale-[1.01] cursor-pointer"
+                  className="py-3 px-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200/80 text-sky-700 font-bold text-xs rounded-xl shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-95 cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1"
                 >
-                  Nhớ
+                  <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>
+                  <span>Nhớ</span>
                 </button>
                 <button
                   onClick={() => handleUpdate('Rất nhớ')}
                   disabled={isUpdating}
-                  className="py-3 px-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[11px] rounded-lg hover:shadow-sm transition-all duration-150 hover:scale-[1.01] cursor-pointer"
+                  className="py-3 px-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-700 font-bold text-xs rounded-xl shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-95 cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1"
                 >
-                  Rất nhớ
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                  <span>Rất nhớ</span>
                 </button>
               </div>
             )}

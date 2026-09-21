@@ -30,7 +30,7 @@ export const SessionPickerModal: React.FC<SessionPickerModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
-  
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
 
@@ -104,8 +104,8 @@ export const SessionPickerModal: React.FC<SessionPickerModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" 
+      <div
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
@@ -126,8 +126,8 @@ export const SessionPickerModal: React.FC<SessionPickerModalProps> = ({
               </p>
             </div>
           </div>
-          
-          <button 
+
+          <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200/60 transition cursor-pointer"
           >
@@ -213,24 +213,22 @@ export const SessionPickerModal: React.FC<SessionPickerModalProps> = ({
                 onSelectSession('all');
                 onClose();
               }}
-              className={`p-3.5 rounded-xl border-2 flex items-center justify-between cursor-pointer transition duration-150 shadow-2xs ${
-                selectedSessionId === 'all'
-                  ? 'bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-600/20 shadow-xs'
-                  : 'bg-slate-50/70 border-slate-300 hover:border-emerald-500/60 hover:bg-white hover:shadow-xs'
-              }`}
+              className={`p-3.5 rounded-xl border-2 flex items-center justify-between cursor-pointer transition duration-150 shadow-2xs ${selectedSessionId === 'all'
+                ? 'bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-600/20 shadow-xs'
+                : 'bg-slate-50/70 border-slate-300 hover:border-emerald-500/60 hover:bg-white hover:shadow-xs'
+                }`}
             >
               <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold ${
-                  selectedSessionId === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-300'
-                }`}>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold ${selectedSessionId === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-300'
+                  }`}>
                   <Layers size={18} />
                 </div>
                 <div>
-                  <span className={`text-sm font-bold block ${selectedSessionId === 'all' ? 'text-emerald-900' : 'text-text-charcoal'}`}>Tất cả các buổi</span>
-                  <p className="text-xs text-text-muted">Hiển thị và làm bài tập cho toàn bộ từ vựng đã lưu</p>
+                  <span className={`text-sm font-bold block ${selectedSessionId === 'all' ? 'text-emerald-900' : 'text-text-charcoal'}`}>Tất cả</span>
+                  <p className="text-xs text-text-muted">Tất cả các buổi đã tạo</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2.5">
                 <span className="px-3 py-1 text-xs font-bold rounded-full bg-white text-slate-700 border border-slate-300 shadow-2xs">
                   {totalWordsCount} từ
@@ -319,62 +317,64 @@ export const SessionPickerModal: React.FC<SessionPickerModalProps> = ({
                       onSelectSession(session.id);
                       onClose();
                     }}
-                    className={`p-3.5 rounded-xl border-2 flex flex-col justify-between gap-3 group transition duration-150 cursor-pointer relative shadow-2xs ${
-                      isSelected
-                        ? 'bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-600/20 shadow-xs'
-                        : 'bg-slate-50/70 border-slate-300 hover:border-emerald-500/60 hover:bg-white hover:shadow-xs'
-                    }`}
+                    className={`group relative bg-white border-2 rounded-2xl p-4 transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[140px] overflow-hidden ${isSelected
+                      ? 'border-emerald-600 ring-2 ring-emerald-600/20 shadow-md bg-emerald-50/30'
+                      : 'border-slate-200 hover:border-slate-800 shadow-2xs hover:shadow-xl'
+                      }`}
                   >
+                    {/* Decorative circle accent on bottom right (matches Topic card design) */}
+                    <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-slate-100/80 group-hover:bg-slate-200/80 transition duration-300 pointer-events-none" />
+
                     {/* Top Row: Session Title & Selection status */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isSelected ? 'bg-emerald-600' : 'bg-slate-400'}`} />
-                        <span className={`text-sm font-semibold truncate ${isSelected ? 'text-emerald-900 font-bold' : 'text-slate-800'}`} title={session.name}>
+                        <span className={`text-base font-extrabold truncate ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`} title={session.name}>
                           {session.name}
                         </span>
                       </div>
-                      
-                      {isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                          <Check size={12} className="stroke-[3]" />
-                        </div>
-                      )}
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-slate-100 border border-slate-200 text-slate-700 shadow-2xs">
+                          {session.word_count || 0} từ
+                        </span>
+                        {isSelected && (
+                          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                            <Check size={12} className="stroke-[3]" />
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Bottom Row: Word Count Badge & Action Buttons */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/70">
-                      <span className={`px-2.5 py-0.5 text-[11px] font-bold rounded-full border ${
-                        session.word_count && session.word_count > 0
-                          ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300'
-                          : 'bg-slate-200/70 text-slate-500 border-slate-300'
-                      }`}>
-                        {session.word_count || 0} từ
+                    {/* Bottom Row: Action Text & Edit/Delete buttons over circle */}
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100/80 relative z-10">
+                      <span className={`text-xs font-bold transition flex items-center gap-1.5 ${isSelected ? 'text-emerald-800' : 'text-slate-500 group-hover:text-slate-800'}`}>
+                        <BookOpen size={14} />
+                        <span>Học từ vựng</span>
                       </span>
 
-                      {/* Explicit Text Edit & Delete Buttons */}
-                      <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition">
+                      {/* Edit & Delete Buttons */}
+                      <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingId(session.id);
                             setEditingName(session.name);
                           }}
-                          className="px-2 py-0.5 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300/80 rounded-md transition cursor-pointer flex items-center gap-1"
+                          className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50/80 rounded-lg transition cursor-pointer"
                           title="Đổi tên buổi"
                         >
-                          <Edit2 size={11} />
-                          Sửa
+                          <Edit2 size={15} />
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeletingId(session.id);
                           }}
-                          className="px-2 py-0.5 text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-300/80 rounded-md transition cursor-pointer flex items-center gap-1"
+                          className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50/80 rounded-lg transition cursor-pointer"
                           title="Xóa buổi"
                         >
-                          <Trash2 size={11} />
-                          Xóa
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </div>

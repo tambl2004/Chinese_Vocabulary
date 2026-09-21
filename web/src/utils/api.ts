@@ -1,10 +1,21 @@
 import { supabase } from '../lib/supabase';
 
+export interface Topic {
+  id: number;
+  user_id: string;
+  name: string;
+  type: 'chinese' | 'english';
+  created_at: string;
+  updated_at?: string;
+  word_count?: number;
+}
+
 export interface Session {
   id: number;
   user_id: string;
   name: string;
   type: 'chinese' | 'english';
+  topic_id?: number | null;
   created_at: string;
   updated_at?: string;
   word_count?: number;
@@ -20,6 +31,7 @@ export interface Vocabulary {
   word_type: string | null;
   memory_level: 'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ';
   study_date: string | null; // YYYY-MM-DD
+  topic_id?: number | null;
   session_id?: number | null;
   last_reviewed_at: string | null; // YYYY-MM-DD
   example?: { sentence: string; translation: string; pinyin?: string } | null;
@@ -38,6 +50,7 @@ export interface EnglishVocabulary {
   word_type: string | null;
   memory_level: 'Dễ quên' | 'Hơi nhớ' | 'Nhớ' | 'Rất nhớ';
   study_date: string | null; // YYYY-MM-DD
+  topic_id?: number | null;
   session_id?: number | null;
   last_reviewed_at: string | null; // YYYY-MM-DD
   example?: { sentence: string; translation: string } | null;
@@ -116,7 +129,7 @@ async function triggerDemotionIfNeeded(userId: string) {
   }
 }
 
-// Admin: User CRUD (Stubbed since users are managed directly in Supabase Dashboard)
+// Admin: User CRUD
 export async function fetchUsers() {
   return [] as UserAccount[];
 }
@@ -226,41 +239,11 @@ export async function fetchAdminEnglishStats() {
   return Array.from(statsMap.values());
 }
 
-// Chinese Vocabulary
-export async function fetchStats(userId: string | number) {
+// Topics API (Parent level)
+export async function fetchTopics(userId: string | number, type: 'chinese' | 'english') {
   const uid = userId.toString();
-  triggerDemotionIfNeeded(uid);
-
-  const { data, error } = await supabase
-    .from('vocabularies')
-    .select('memory_level')
-    .eq('user_id', uid);
-
-  if (error) throw error;
-
-  const stats = {
-    total: data.length,
-    rat_nho: 0,
-    nho: 0,
-    hoi_nho: 0,
-    de_quen: 0
-  };
-
-  data.forEach(item => {
-    if (item.memory_level === 'Rất nhớ') stats.rat_nho++;
-    else if (item.memory_level === 'Nhớ') stats.nho++;
-    else if (item.memory_level === 'Hơi nhớ') stats.hoi_nho++;
-    else if (item.memory_level === 'Dễ quên') stats.de_quen++;
-  });
-
-  return stats;
-}
-
-// Sessions API
-export async function fetchSessions(userId: string | number, type: 'chinese' | 'english') {
-  const uid = userId.toString();
-  const { data: sessions, error } = await supabase
-    .from('sessions')
+  const { data: topics, error } = await supabase
+    .from('topics')
     .select('*')
     .eq('user_id', uid)
     .eq('type', type)
@@ -271,8 +254,83 @@ export async function fetchSessions(userId: string | number, type: 'chinese' | '
   const tableName = type === 'chinese' ? 'vocabularies' : 'english_vocabularies';
   const { data: vocabs } = await supabase
     .from(tableName)
-    .select('session_id')
+    .select('topic_id')
     .eq('user_id', uid);
+
+  const countsMap: Record<number, number> = {};
+  vocabs?.forEach(v => {
+    if (v.topic_id) {
+      countsMap[v.topic_id] = (countsMap[v.topic_id] || 0) + 1;
+    }
+  });
+
+  return (topics as Topic[]).map(t => ({
+    ...t,
+    word_count: countsMap[t.id] || 0
+  }));
+}
+
+export async function addTopic(name: string, type: 'chinese' | 'english') {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('topics')
+    .insert([{
+      name: name.trim(),
+      type,
+      user_id: user.id
+    }])
+    .select();
+
+  if (error) throw error;
+  return data[0] as Topic;
+}
+
+export async function updateTopic(id: number, name: string) {
+  const { data, error } = await supabase
+    .from('topics')
+    .update({ name: name.trim(), updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select();
+
+  if (error) throw error;
+  return data[0] as Topic;
+}
+
+export async function deleteTopic(id: number) {
+  const { error } = await supabase
+    .from('topics')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return { message: 'Deleted topic successfully', id };
+}
+
+// Sessions API (Child level under Topic)
+export async function fetchSessions(userId: string | number, type: 'chinese' | 'english', topicId?: number | string) {
+  const uid = userId.toString();
+  let query = supabase
+    .from('sessions')
+    .select('*')
+    .eq('user_id', uid)
+    .eq('type', type);
+
+  if (topicId && topicId !== 'all') {
+    query = query.eq('topic_id', topicId);
+  }
+
+  const { data: sessions, error } = await query.order('id', { ascending: true });
+  if (error) throw error;
+
+  const tableName = type === 'chinese' ? 'vocabularies' : 'english_vocabularies';
+  let vocabQuery = supabase.from(tableName).select('session_id').eq('user_id', uid);
+  if (topicId && topicId !== 'all') {
+    vocabQuery = vocabQuery.eq('topic_id', topicId);
+  }
+
+  const { data: vocabs } = await vocabQuery;
 
   const countsMap: Record<number, number> = {};
   vocabs?.forEach(v => {
@@ -287,7 +345,7 @@ export async function fetchSessions(userId: string | number, type: 'chinese' | '
   }));
 }
 
-export async function addSession(name: string, type: 'chinese' | 'english') {
+export async function addSession(name: string, type: 'chinese' | 'english', topicId?: number | null) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -296,6 +354,7 @@ export async function addSession(name: string, type: 'chinese' | 'english') {
     .insert([{
       name: name.trim(),
       type,
+      topic_id: topicId || null,
       user_id: user.id
     }])
     .select();
@@ -325,6 +384,45 @@ export async function deleteSession(id: number) {
   return { message: 'Deleted session successfully', id };
 }
 
+// Chinese Vocabulary
+export async function fetchStats(userId: string | number, topicId?: number | string, sessionId?: number | string) {
+  const uid = userId.toString();
+  triggerDemotionIfNeeded(uid);
+
+  let query = supabase
+    .from('vocabularies')
+    .select('memory_level')
+    .eq('user_id', uid);
+
+  if (topicId && topicId !== 'all') {
+    query = query.eq('topic_id', topicId);
+  }
+  if (sessionId && sessionId !== 'all') {
+    query = query.eq('session_id', sessionId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  const stats = {
+    total: data.length,
+    rat_nho: 0,
+    nho: 0,
+    hoi_nho: 0,
+    de_quen: 0
+  };
+
+  data.forEach(item => {
+    if (item.memory_level === 'Rất nhớ') stats.rat_nho++;
+    else if (item.memory_level === 'Nhớ') stats.nho++;
+    else if (item.memory_level === 'Hơi nhớ') stats.hoi_nho++;
+    else if (item.memory_level === 'Dễ quên') stats.de_quen++;
+  });
+
+  return stats;
+}
+
 export async function fetchDates(userId: string | number) {
   const uid = userId.toString();
   const { data, error } = await supabase
@@ -339,7 +437,10 @@ export async function fetchDates(userId: string | number) {
   return Array.from(datesSet).sort().reverse();
 }
 
-export async function fetchVocabularies(userId: string | number, params?: { search?: string; memory_level?: string; study_date?: string; session_id?: number | string }) {
+export async function fetchVocabularies(
+  userId: string | number,
+  params?: { search?: string; memory_level?: string; study_date?: string; session_id?: number | string; topic_id?: number | string }
+) {
   const uid = userId.toString();
   let query = supabase.from('vocabularies').select('*').eq('user_id', uid);
 
@@ -347,6 +448,9 @@ export async function fetchVocabularies(userId: string | number, params?: { sear
     if (params.search) {
       const s = `%${params.search}%`;
       query = query.or(`chinese.ilike.${s},pinyin.ilike.${s},han_viet.ilike.${s},meaning.ilike.${s}`);
+    }
+    if (params.topic_id && params.topic_id !== 'all') {
+      query = query.eq('topic_id', params.topic_id);
     }
     if (params.memory_level && params.memory_level !== 'all') {
       query = query.eq('memory_level', params.memory_level);
@@ -407,14 +511,23 @@ export async function deleteVocabulary(id: number) {
 }
 
 // English Vocabulary
-export async function fetchEnglishStats(userId: string | number) {
+export async function fetchEnglishStats(userId: string | number, topicId?: number | string, sessionId?: number | string) {
   const uid = userId.toString();
   triggerDemotionIfNeeded(uid);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('english_vocabularies')
     .select('memory_level')
     .eq('user_id', uid);
+
+  if (topicId && topicId !== 'all') {
+    query = query.eq('topic_id', topicId);
+  }
+  if (sessionId && sessionId !== 'all') {
+    query = query.eq('session_id', sessionId);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
@@ -450,7 +563,10 @@ export async function fetchEnglishDates(userId: string | number) {
   return Array.from(datesSet).sort().reverse();
 }
 
-export async function fetchEnglishVocabularies(userId: string | number, params?: { search?: string; memory_level?: string; study_date?: string; session_id?: number | string }) {
+export async function fetchEnglishVocabularies(
+  userId: string | number,
+  params?: { search?: string; memory_level?: string; study_date?: string; session_id?: number | string; topic_id?: number | string }
+) {
   const uid = userId.toString();
   let query = supabase.from('english_vocabularies').select('*').eq('user_id', uid);
 
@@ -458,6 +574,9 @@ export async function fetchEnglishVocabularies(userId: string | number, params?:
     if (params.search) {
       const s = `%${params.search}%`;
       query = query.or(`word.ilike.${s},transliteration.ilike.${s},meaning.ilike.${s}`);
+    }
+    if (params.topic_id && params.topic_id !== 'all') {
+      query = query.eq('topic_id', params.topic_id);
     }
     if (params.memory_level && params.memory_level !== 'all') {
       query = query.eq('memory_level', params.memory_level);

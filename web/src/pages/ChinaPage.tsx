@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Upload, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, BookOpen, ChevronDown } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, Plus, Upload, CheckCircle2, AlertCircle, AlertTriangle, Info, X, LogOut, BookOpen, ChevronDown, ArrowLeft, Check } from 'lucide-react';
 import {
   fetchVocabularies,
   fetchStats,
@@ -12,8 +12,10 @@ import {
   addSession,
   updateSession,
   deleteSession,
+  fetchTopics,
   type Vocabulary,
-  type Session
+  type Session,
+  type Topic
 } from '../utils/api';
 import StatsCard from '../components/StatsCard';
 import VocabularyTable from '../components/VocabularyTable';
@@ -27,7 +29,11 @@ import * as XLSX from 'xlsx';
 
 export const ChinaPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const topicIdParam = searchParams.get('topicId');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentTopic, setCurrentTopic] = useState<Topic | null>(null);
   const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
   const [stats, setStats] = useState({ total: 0, rat_nho: 0, nho: 0, hoi_nho: 0, de_quen: 0 });
 
@@ -36,6 +42,19 @@ export const ChinaPage = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | 'all'>('all');
   const [selectedMemoryLevel, setSelectedMemoryLevel] = useState<string>('all');
+  const [isMemoryDropdownOpen, setIsMemoryDropdownOpen] = useState(false);
+  const memoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close memory dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (memoryDropdownRef.current && !memoryDropdownRef.current.contains(event.target as Node)) {
+        setIsMemoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Session Picker Modal state
   const [isSessionPickerOpen, setIsSessionPickerOpen] = useState(false);
@@ -68,7 +87,7 @@ export const ChinaPage = () => {
 
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Authentication Guard
+  // Authentication & Topic Guard
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
     if (!userStr) {
@@ -80,12 +99,18 @@ export const ChinaPage = () => {
       navigate('/login');
       return;
     }
-    setCurrentUser(user);
-  }, [navigate]);
 
-  const loadSessions = async (userId: string) => {
+    if (!topicIdParam) {
+      navigate('/topics?type=chinese', { replace: true });
+      return;
+    }
+
+    setCurrentUser(user);
+  }, [topicIdParam, navigate]);
+
+  const loadSessionsList = async (userId: string, topicId: number) => {
     try {
-      const list = await fetchSessions(userId, 'chinese');
+      const list = await fetchSessions(userId, 'chinese', topicId);
       setSessions(list);
       return list;
     } catch (err) {
@@ -96,17 +121,24 @@ export const ChinaPage = () => {
 
   // Load all data from API
   const loadData = async () => {
-    if (!currentUser) return;
+    if (!currentUser || !topicIdParam) return;
     try {
-      // Fetch stats
-      const statsData = await fetchStats(currentUser.id);
+      const activeTopicId = Number(topicIdParam);
+
+      // Fetch active topic details
+      const topicsList = await fetchTopics(currentUser.id, 'chinese');
+      const topic = topicsList.find((t) => t.id === activeTopicId);
+      setCurrentTopic(topic || null);
+
+      // Fetch stats for active topic and selected session
+      const statsData = await fetchStats(currentUser.id, activeTopicId, selectedSessionId);
       setStats(statsData);
 
-      // Fetch sessions list
-      await loadSessions(currentUser.id);
+      // Fetch sessions list for this topic
+      await loadSessionsList(currentUser.id, activeTopicId);
 
-      // Fetch vocabularies with active params
-      const params: any = {};
+      // Fetch vocabularies for active topic
+      const params: any = { topic_id: activeTopicId };
       if (globalSearch.trim()) params.search = globalSearch;
       if (selectedSessionId !== 'all') params.session_id = selectedSessionId;
       if (selectedMemoryLevel !== 'all') params.memory_level = selectedMemoryLevel;
@@ -118,12 +150,12 @@ export const ChinaPage = () => {
     }
   };
 
-  // Reload data whenever filters or user change
+  // Reload data whenever filters or topic change
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && topicIdParam) {
       loadData();
     }
-  }, [globalSearch, selectedSessionId, selectedMemoryLevel, currentUser]);
+  }, [globalSearch, selectedSessionId, selectedMemoryLevel, currentUser, topicIdParam]);
 
   // Client-side local filtering based on "Filter table..." input
   const filteredVocabularies = useMemo(() => {
@@ -157,6 +189,7 @@ export const ChinaPage = () => {
         await addVocabulary({
           ...wordData,
           user_id: currentUser.id,
+          topic_id: Number(topicIdParam),
           session_id: wordData.session_id !== undefined ? wordData.session_id : (typeof selectedSessionId === 'number' ? selectedSessionId : null)
         });
         showToast('Thêm từ vựng mới thành công!', 'success');
@@ -219,7 +252,7 @@ export const ChinaPage = () => {
 
   const handleStartStudy = async (option: 'sequential' | 'memory' | 'random') => {
     if (!currentUser) return;
-    
+
     let baseVocabs = [...vocabularies];
     if (baseVocabs.length === 0) {
       try {
@@ -333,6 +366,7 @@ export const ChinaPage = () => {
             word_type: wordTypeVal,
             memory_level: 'Dễ quên' as const,
             study_date: new Date().toISOString().split('T')[0],
+            topic_id: Number(topicIdParam),
             session_id: typeof selectedSessionId === 'number' ? selectedSessionId : null
           };
         });
@@ -366,28 +400,23 @@ export const ChinaPage = () => {
     <div className="min-h-screen bg-[#f7f9fb] flex flex-col font-sans">
       <header className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-30">
         <div className="max-w-[1200px] mx-auto px-safe py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center justify-between md:justify-start gap-4 w-full md:w-auto">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/china')}>
+          <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/topics?type=chinese')}>
               <img src="/images/logo-china.png" alt="Logo" className="w-8 h-8 object-contain" />
               <h1 className="text-primary font-bold text-base md:text-lg tracking-tight whitespace-nowrap">
                 Học HSK
               </h1>
             </div>
-            
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
-              <button 
-                onClick={() => navigate('/china')}
-                className="px-3 py-1 rounded bg-white shadow-xs text-primary font-bold transition duration-150"
-              >
-                Tiếng Trung
-              </button>
-              <button 
-                onClick={() => navigate('/english')}
-                className="px-3 py-1 rounded text-slate-500 hover:text-slate-700 font-bold transition duration-150 cursor-pointer"
-              >
-                Tiếng Anh
-              </button>
-            </div>
+
+            {/* Active topic indicator & change button */}
+            <button
+              onClick={() => navigate('/topics?type=chinese')}
+              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#1e5347] font-bold text-xs rounded-lg transition duration-150 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Đổi chủ đề khác"
+            >
+              <ArrowLeft size={13} />
+              <span>Chủ đề: {currentTopic?.name || 'HSK'}</span>
+            </button>
           </div>
 
           <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
@@ -417,7 +446,7 @@ export const ChinaPage = () => {
               <Upload size={14} />
               <span className="hidden sm:inline">Nhập Excel</span>
             </button>
-            <input 
+            <input
               type="file"
               ref={fileInputRef}
               onChange={handleImportExcel}
@@ -464,35 +493,62 @@ export const ChinaPage = () => {
             />
           </div>
 
-          <div className="flex flex-row flex-wrap items-center gap-3 self-stretch sm:self-auto justify-start sm:justify-end">
+          <div className="flex flex-row items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end w-full sm:w-auto">
             {/* Session Selection Trigger Button */}
             <button
               onClick={() => setIsSessionPickerOpen(true)}
-              className="px-3.5 py-2 text-sm bg-white border border-slate-200 hover:border-primary/50 rounded-lg shadow-xs flex items-center gap-2 transition cursor-pointer group"
+              className="flex-1 sm:flex-initial px-2.5 sm:px-3 text-xs sm:text-sm font-semibold text-text-charcoal bg-white border border-slate-200 hover:border-primary/50 rounded-lg shadow-xs flex items-center justify-between sm:justify-start gap-1.5 transition cursor-pointer group min-w-0 h-9"
             >
-              <BookOpen size={16} className="text-primary group-hover:scale-110 transition" />
-              <span className="font-bold text-text-charcoal">
-                {selectedSessionId === 'all'
-                  ? `Tất cả các buổi (${stats.total} từ)`
-                  : `${sessions.find(s => s.id === selectedSessionId)?.name || 'Buổi học'} (${sessions.find(s => s.id === selectedSessionId)?.word_count || 0} từ)`}
-              </span>
-              <ChevronDown size={14} className="text-slate-400" />
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <BookOpen size={14} className="text-primary group-hover:scale-110 transition shrink-0" />
+                <span className="font-semibold text-text-charcoal truncate">
+                  {selectedSessionId === 'all'
+                    ? `Tất cả (${stats.total} từ)`
+                    : `${sessions.find(s => s.id === selectedSessionId)?.name || 'Buổi học'} (${sessions.find(s => s.id === selectedSessionId)?.word_count || 0} từ)`}
+                </span>
+              </div>
+              <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1" />
             </button>
 
-            {/* Memory Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-text-muted">Mức nhớ:</span>
-              <select
-                value={selectedMemoryLevel}
-                onChange={(e) => setSelectedMemoryLevel(e.target.value)}
-                className="px-3 py-2 text-sm text-text-charcoal bg-white border border-slate-200 rounded shadow-xs focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[130px]"
+            {/* Memory Filter Button Dropdown */}
+            <div className="relative flex-1 sm:flex-initial shrink-0 min-w-0" ref={memoryDropdownRef}>
+              <button
+                onClick={() => setIsMemoryDropdownOpen(!isMemoryDropdownOpen)}
+                className="w-full sm:w-auto px-2.5 sm:px-3 text-xs sm:text-sm font-semibold text-text-charcoal bg-white border border-slate-200 hover:border-primary/50 rounded-lg shadow-xs flex items-center justify-between gap-1.5 transition cursor-pointer group min-w-0 h-9"
               >
-                <option value="all">Tất cả</option>
-                <option value="Dễ quên">Dễ quên</option>
-                <option value="Hơi nhớ">Hơi nhớ</option>
-                <option value="Nhớ">Nhớ</option>
-                <option value="Rất nhớ">Rất nhớ</option>
-              </select>
+                <span className="font-semibold text-text-charcoal truncate">
+                  {selectedMemoryLevel === 'all' ? 'Mức nhớ: Tất cả' : `Mức nhớ: ${selectedMemoryLevel}`}
+                </span>
+                <ChevronDown size={14} className={`text-slate-400 shrink-0 ml-1 transition-transform duration-150 ${isMemoryDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isMemoryDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-40 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1.5 animate-in fade-in zoom-in-95 duration-100">
+                  {[
+                    { value: 'all', label: 'Mức nhớ: Tất cả' },
+                    { value: 'Dễ quên', label: 'Dễ quên' },
+                    { value: 'Hơi nhớ', label: 'Hơi nhớ' },
+                    { value: 'Nhớ', label: 'Nhớ' },
+                    { value: 'Rất nhớ', label: 'Rất nhớ' },
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      onClick={() => {
+                        setSelectedMemoryLevel(item.value);
+                        setIsMemoryDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-between ${
+                        selectedMemoryLevel === item.value
+                          ? 'bg-primary/10 text-primary font-bold'
+                          : 'text-text-charcoal hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      {selectedMemoryLevel === item.value && <Check size={14} className="text-primary shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -523,7 +579,7 @@ export const ChinaPage = () => {
         selectedSessionId={selectedSessionId}
         onSelectSession={(id) => setSelectedSessionId(id)}
         onAddSession={async (name) => {
-          const created = await addSession(name, 'chinese');
+          const created = await addSession(name, 'chinese', Number(topicIdParam));
           showToast('Thêm buổi học mới thành công!', 'success');
           setSelectedSessionId(created.id);
           await loadData();
@@ -575,7 +631,7 @@ export const ChinaPage = () => {
         {toasts.map((toast) => {
           let bgClass = 'bg-white border-slate-200 text-text-charcoal';
           let Icon = null;
-          
+
           if (toast.type === 'success') {
             bgClass = 'bg-white border-emerald-100 text-emerald-800 shadow-md border-l-4 border-l-emerald-500';
             Icon = <CheckCircle2 className="text-emerald-500 flex-shrink-0" size={18} />;
@@ -597,7 +653,7 @@ export const ChinaPage = () => {
             >
               {Icon}
               <div className="flex-1">{toast.message}</div>
-              <button 
+              <button
                 onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
                 className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition cursor-pointer"
               >

@@ -105,13 +105,13 @@ export const EnglishVocabularyTable: React.FC<EnglishVocabularyTableProps> = ({
         <table className="w-full min-w-[800px] text-left border-collapse">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted w-16 whitespace-nowrap">#</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Words (Từ vựng)</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Transliteration (Phiên âm)</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Loại từ</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Means (Nghĩa)</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Mức nhớ</th>
-              <th className="py-4 px-6 text-xs font-semibold text-text-muted text-right whitespace-nowrap">Thao tác</th>
+              <th className="py-4 px-2 sm:px-6 text-xs font-semibold text-text-muted w-8 sm:w-16 text-center sm:text-left whitespace-nowrap">#</th>
+              <th className="py-4 px-3 sm:px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Words (Từ vựng)</th>
+              <th className="py-4 px-3 sm:px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Transliteration (Phiên âm)</th>
+              <th className="py-4 px-3 sm:px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Loại từ</th>
+              <th className="py-4 px-3 sm:px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Means (Nghĩa)</th>
+              <th className="py-4 px-3 sm:px-6 text-xs font-semibold text-text-muted whitespace-nowrap">Mức nhớ</th>
+              <th className="py-4 px-3 sm:px-6 text-xs font-semibold text-text-muted text-right whitespace-nowrap">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -121,27 +121,27 @@ export const EnglishVocabularyTable: React.FC<EnglishVocabularyTableProps> = ({
                   key={word.id}
                   className="hover:bg-slate-50 transition-colors duration-150 group"
                 >
-                  <td className="py-3 px-6 text-sm text-text-muted whitespace-nowrap">
+                  <td className="py-3 px-2 sm:px-6 text-sm text-text-muted text-center sm:text-left whitespace-nowrap">
                     {startIndex + index + 1}
                   </td>
-                  <td className="py-3 px-6 text-base font-bold text-text-charcoal tracking-wide whitespace-nowrap">
+                  <td className="py-3 px-3 sm:px-6 text-base font-bold text-text-charcoal tracking-wide whitespace-nowrap">
                     {word.word}
                   </td>
-                  <td className="py-3 px-6 text-sm text-slate-500 font-mono whitespace-nowrap">
+                  <td className="py-3 px-3 sm:px-6 text-sm text-slate-500 font-mono whitespace-nowrap">
                     {word.transliteration}
                   </td>
-                  <td className="py-3 px-6 text-xs font-semibold whitespace-nowrap">
+                  <td className="py-3 px-3 sm:px-6 text-xs font-semibold whitespace-nowrap">
                     <span className="inline-flex px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                       {word.word_type || 'Danh từ'}
                     </span>
                   </td>
-                  <td className="py-3 px-6 text-sm text-text-charcoal font-medium min-w-[150px]">
+                  <td className="py-3 px-3 sm:px-6 text-sm text-text-charcoal font-medium min-w-[150px]">
                     {word.meaning}
                   </td>
-                  <td className="py-3 px-6 whitespace-nowrap">
+                  <td className="py-3 px-3 sm:px-6 whitespace-nowrap">
                     {getStatusBadge(word.memory_level)}
                   </td>
-                  <td className="py-3 px-6 text-right whitespace-nowrap">
+                  <td className="py-3 px-3 sm:px-6 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => speakEnglish(word.word)}

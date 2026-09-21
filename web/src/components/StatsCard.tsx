@@ -29,13 +29,13 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-5 mb-6">
-      <div className="flex-shrink-0">
+    <div className="bg-transparent sm:bg-white rounded-xl shadow-none sm:shadow-sm border-0 sm:border border-slate-100 p-0 sm:p-5 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 sm:gap-5 mb-4 sm:mb-6">
+      <div className="flex-shrink-0 hidden sm:block">
         <h2 className="text-xl font-bold text-text-charcoal mb-0.5">Tiến độ học tập</h2>
         <p className="text-text-muted text-xs font-medium">Hôm nay là {getTodayDateString()}</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 flex-1 max-w-3xl">
+      <div className="hidden sm:grid grid-cols-2 sm:grid-cols-5 gap-2.5 flex-1 max-w-3xl">
         {/* Total */}
         <div 
           onClick={() => onStatClick?.('all')} 
@@ -97,7 +97,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
       {onStartReview && total > 0 && (
         <button
           onClick={onStartReview}
-          className="px-5 py-3 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl shadow-xs hover:shadow transition duration-200 text-xs uppercase tracking-wider whitespace-nowrap flex justify-center items-center cursor-pointer hover:scale-[1.01] active:scale-95"
+          className="w-full sm:w-auto px-5 py-3 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl shadow-xs hover:shadow transition duration-200 text-xs uppercase tracking-wider whitespace-nowrap flex justify-center items-center cursor-pointer hover:scale-[1.01] active:scale-95 h-11 sm:h-auto"
         >
           Bắt đầu ôn tập
         </button>
