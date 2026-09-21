@@ -17,7 +17,16 @@ Hệ thống hỗ trợ trang đăng nhập bảo mật và trực quan. Tại �
 
 ---
 
-### 2. Giao Diện Quản Lý Từ Vựng & Dashboard Thống Kê
+### 2. Chọn Chủ Đề Học Tập
+Sau khi đăng nhập, hệ thống cho phép học viên lựa chọn hoặc tạo mới các chủ đề học tập linh hoạt:
+- **Chuyển đổi phân hệ:** Dễ dàng chuyển đổi giữa chủ đề Tiếng Trung và Tiếng Anh.
+- **Quản lý chủ đề:** Thêm chủ đề mới, đổi tên hoặc xóa các chủ đề học tập.
+
+![Chọn chủ đề](web/public/images/demo/chude.png)
+
+---
+
+### 3. Giao Diện Quản Lý Từ Vựng & Dashboard Thống Kê
 Giao diện quản lý tập trung thông minh và khoa học:
 - **Bảng thống kê tiến độ học:** Phân loại từ vựng trực quan theo mức độ ghi nhớ (Rất nhớ, Nhớ, Hơi nhớ, Dễ quên).
 - **Bộ lọc & Tìm kiếm mạnh mẽ:** Lọc từ vựng theo ngày học (Hôm nay, Hôm trước, Tất cả), mức độ nhớ, và tìm kiếm thời gian thực theo chữ viết, phiên âm, âm Hán Việt hoặc nghĩa tiếng Việt.
@@ -27,7 +36,7 @@ Giao diện quản lý tập trung thông minh và khoa học:
 
 ---
 
-### 3. Chức Năng Ôn Tập Flashcard Tùy Chỉnh
+### 4. Chức Năng Ôn Tập Flashcard Tùy Chỉnh
 Hệ thống cung cấp trải nghiệm ôn tập khoa học và tối ưu:
 - **Tùy chọn ôn tập:** Cho phép thiết lập số lượng từ học, bộ lọc mức độ nhớ và chọn thứ tự xuất hiện (Ngẫu nhiên hoặc Theo thứ tự bảng).
 - **Trình ôn tập Flashcard:**
@@ -40,7 +49,7 @@ Hệ thống cung cấp trải nghiệm ôn tập khoa học và tối ưu:
 
 #### Giao diện thẻ Flashcard ôn tập:
 ![Thẻ ôn tập](web/public/images/demo/ontap1.png)
-#### Giao diện mắt sau thẻ Flashcard ôn tập:
+#### Giao diện mặt sau thẻ Flashcard ôn tập:
 ![Mặt sau thẻ ôn tập](web/public/images/demo/ontap2.png)
 ---
 
