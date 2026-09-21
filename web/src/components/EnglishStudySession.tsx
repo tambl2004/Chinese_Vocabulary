@@ -122,9 +122,15 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-[#f7f9fb] z-50 flex flex-col justify-between overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-cover bg-center bg-no-repeat z-50 flex flex-col justify-between overflow-y-auto"
+      style={{ backgroundImage: "url('/images/Chinese_BG_26.jpg')" }}
+    >
+      {/* Background Overlay for contrast and readability */}
+      <div className="absolute inset-0 bg-white/30 pointer-events-none" />
+
       {/* Top Progress bar and Header */}
-      <div className="w-full">
+      <div className="w-full z-10">
         {/* Progress Bar */}
         <div className="w-full h-1.5 bg-slate-100">
           <div
@@ -140,13 +146,13 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
               Hoàn thành
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-primary bg-primary/10 rounded-full border border-primary/20">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-primary bg-white/90 backdrop-blur-xs rounded-full border border-primary/20 shadow-2xs">
               Đang học: từ <span className="text-primary-dark font-extrabold">{currentIndex + 1}</span> / <span className="text-primary-dark font-extrabold">{vocabularies.length}</span>
             </span>
           )}
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-status-red-text bg-status-red-bg hover:bg-status-red-bg/85 border border-red-200/40 rounded transition duration-200 shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-status-red-text bg-white/90 hover:bg-white border border-red-200/60 rounded transition duration-200 shadow-2xs cursor-pointer"
           >
             <X size={14} className="stroke-[2.5px]" />
             Đóng phiên
@@ -155,7 +161,7 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
       </div>
 
       {/* Main Review Card */}
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-center justify-center p-4 z-10">
         {hasCompleted ? (
           // Completion screen
           <div className="bg-white rounded-card shadow-soft border border-slate-100 max-w-md w-full p-8 text-center animate-in fade-in zoom-in-95 duration-200">
@@ -184,11 +190,11 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
           </div>
         ) : (
           // Active review card
-          <div className="flex flex-col items-center max-w-lg w-full">
+          <div className="flex flex-col items-center max-w-2xl md:max-w-3xl w-full">
             {/* Study Card */}
             <div
               onClick={handleCardFlip}
-              className="bg-gradient-to-br from-white via-white to-sky-50/20 rounded-3xl shadow-[0_10px_35px_rgba(0,0,0,0.05)] border border-slate-100/90 w-full p-6 md:p-8 mb-5 flex flex-col items-center relative transition-all duration-300 min-h-[400px] justify-between cursor-pointer group active:scale-[0.995] overflow-hidden"
+              className="bg-gradient-to-br from-white via-white to-sky-50/20 rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.06)] border border-slate-100/90 w-full p-8 md:p-12 mb-6 flex flex-col items-center relative transition-all duration-300 min-h-[450px] md:min-h-[520px] justify-between cursor-pointer group active:scale-[0.995] overflow-hidden"
             >
               {/* Organic Waves Decorative Accent in Top-Left Corner (Mirrored) */}
               <div className="absolute -top-4 -left-4 w-48 h-48 pointer-events-none overflow-hidden rounded-tl-3xl opacity-80 z-0 rotate-180">
@@ -245,7 +251,7 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
 
               {/* English Word Display */}
               <div className="flex-1 flex flex-col items-center justify-center py-6 z-10">
-                <span className="text-5xl md:text-6xl font-bold text-[#0284c7] tracking-wide leading-none select-none text-center group-hover:scale-105 transition-transform duration-300">
+                <span className="text-6xl md:text-7xl font-bold text-[#0284c7] tracking-wide leading-none select-none text-center group-hover:scale-105 transition-transform duration-300">
                   {currentWord.word}
                 </span>
                 {!showAnswer && (
@@ -394,7 +400,7 @@ export const EnglishStudySession: React.FC<EnglishStudySessionProps> = ({
       </div>
 
       {/* Footer spacer */}
-      <div className="py-6 text-center text-xs text-text-muted select-none">
+      <div className="py-6 text-center text-xs text-slate-600 font-medium select-none z-10">
         Mẹo: Sử dụng nút nghe phát âm góc trên bên phải của thẻ từ vựng
       </div>
     </div>

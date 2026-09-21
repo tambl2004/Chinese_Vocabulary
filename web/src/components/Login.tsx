@@ -33,12 +33,18 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb] flex flex-col justify-center items-center p-4">
+    <div
+      className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col justify-center items-center p-4 relative"
+      style={{ backgroundImage: "url('/images/Chinese_BG_26.jpg')" }}
+    >
+      {/* Overlay to improve readability and aesthetic blend */}
+      <div className="absolute inset-0 pointer-events-none" />
+
       {/* Background blobs for premium glassmorphism vibe */}
       <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-200/20 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-white rounded-card shadow-soft-lg border border-slate-100 p-8 z-10 relative">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-card shadow-soft-lg border border-slate-100/80 p-8 z-10 relative">
         {/* Title */}
         <div className="text-center">
           <img src="/images/logo-china.png" alt="Logo" className="w-36 h-36 object-contain mx-auto" />

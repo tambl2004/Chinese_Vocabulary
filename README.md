@@ -39,8 +39,9 @@ Hệ thống cung cấp trải nghiệm ôn tập khoa học và tối ưu:
 ![Tùy chọn ôn tập](web/public/images/demo/tuychonontap.png)
 
 #### Giao diện thẻ Flashcard ôn tập:
-![Thẻ ôn tập](web/public/images/demo/ontap.png)
-
+![Thẻ ôn tập](web/public/images/demo/ontap1.png)
+#### Giao diện mắt sau thẻ Flashcard ôn tập:
+![Mặt sau thẻ ôn tập](web/public/images/demo/ontap2.png)
 ---
 
 ## 🛠️ Công Nghệ Sử Dụng

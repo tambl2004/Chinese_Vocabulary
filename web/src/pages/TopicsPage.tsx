@@ -151,7 +151,13 @@ export const TopicsPage: React.FC = () => {
   const themeHoverClass = isChinese ? 'hover:bg-[#163e35]' : 'hover:bg-[#0369a1]';
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-between p-3 sm:p-6 md:p-8 relative overflow-x-hidden font-sans">
+    <div
+      className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col justify-between p-3 sm:p-6 md:p-8 relative overflow-x-hidden font-sans"
+      style={{ backgroundImage: "url('/images/Chinese_BG_26.jpg')" }}
+    >
+      {/* Background Overlay for contrast and readability */}
+      <div className="absolute inset-0  pointer-events-none" />
+
       {/* Background Decorative Blur Blobs (similar to Login screen vibe) */}
       <div className="absolute top-5 left-5 w-80 h-80 sm:w-96 sm:h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-5 right-5 w-80 h-80 sm:w-96 sm:h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />

@@ -29,8 +29,9 @@ import * as XLSX from 'xlsx';
 
 export const ChinaPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const topicIdParam = searchParams.get('topicId');
+  const studyParam = searchParams.get('study') as 'sequential' | 'memory' | 'random' | null;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentTopic, setCurrentTopic] = useState<Topic | null>(null);
@@ -157,6 +158,13 @@ export const ChinaPage = () => {
     }
   }, [globalSearch, selectedSessionId, selectedMemoryLevel, currentUser, topicIdParam]);
 
+  // Auto-launch study session if URL contains ?study=... (e.g. after F5 / browser reload)
+  useEffect(() => {
+    if (studyParam && vocabularies.length > 0 && !isStudyMode) {
+      handleStartStudy(studyParam);
+    }
+  }, [vocabularies, studyParam]);
+
   // Client-side local filtering based on "Filter table..." input
   const filteredVocabularies = useMemo(() => {
     if (!tableSearch.trim()) return vocabularies;
@@ -254,9 +262,9 @@ export const ChinaPage = () => {
     if (!currentUser) return;
 
     let baseVocabs = [...vocabularies];
-    if (baseVocabs.length === 0) {
+    if (baseVocabs.length === 0 && topicIdParam) {
       try {
-        baseVocabs = await fetchVocabularies(currentUser.id);
+        baseVocabs = await fetchVocabularies(currentUser.id, { topic_id: Number(topicIdParam) });
       } catch (error) {
         console.error('Error loading all words for study:', error);
       }
@@ -265,6 +273,11 @@ export const ChinaPage = () => {
     if (baseVocabs.length === 0) {
       showToast('Không có từ vựng nào để ôn tập.', 'warning');
       setIsStudyOptionsModalOpen(false);
+      if (searchParams.get('study')) {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('study');
+        setSearchParams(newParams, { replace: true });
+      }
       return;
     }
 
@@ -292,6 +305,21 @@ export const ChinaPage = () => {
     setStudyVocabularies(listToStudy);
     setIsStudyMode(true);
     setIsStudyOptionsModalOpen(false);
+
+    if (searchParams.get('study') !== option) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('study', option);
+      setSearchParams(newParams, { replace: true });
+    }
+  };
+
+  const handleCloseStudySession = () => {
+    setIsStudyMode(false);
+    if (searchParams.get('study')) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('study');
+      setSearchParams(newParams, { replace: true });
+    }
   };
 
   const handleTriggerImport = () => {
@@ -397,7 +425,11 @@ export const ChinaPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb] flex flex-col font-sans">
+    <div
+      className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col font-sans relative"
+      style={{ backgroundImage: "url('/images/Chinese_BG_26.jpg')" }}
+    >
+      <div className="absolute inset-0 pointer-events-none" />
       <header className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-30">
         <div className="max-w-[1200px] mx-auto px-safe py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
@@ -537,11 +569,10 @@ export const ChinaPage = () => {
                         setSelectedMemoryLevel(item.value);
                         setIsMemoryDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-between ${
-                        selectedMemoryLevel === item.value
+                      className={`w-full text-left px-3 py-2 text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-between ${selectedMemoryLevel === item.value
                           ? 'bg-primary/10 text-primary font-bold'
                           : 'text-text-charcoal hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <span>{item.label}</span>
                       {selectedMemoryLevel === item.value && <Check size={14} className="text-primary shrink-0" />}
@@ -603,7 +634,7 @@ export const ChinaPage = () => {
           vocabularies={studyVocabularies}
           onUpdateLevel={handleUpdateLevel}
           onUpdateExample={handleUpdateExample}
-          onClose={() => setIsStudyMode(false)}
+          onClose={handleCloseStudySession}
         />
       )}
 
