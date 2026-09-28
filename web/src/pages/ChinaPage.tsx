@@ -109,42 +109,29 @@ export const ChinaPage = () => {
     setCurrentUser(user);
   }, [topicIdParam, navigate]);
 
-  const loadSessionsList = async (userId: string, topicId: number) => {
-    try {
-      const list = await fetchSessions(userId, 'chinese', topicId);
-      setSessions(list);
-      return list;
-    } catch (err) {
-      console.error('Error fetching sessions:', err);
-      return [];
-    }
-  };
-
   // Load all data from API
   const loadData = async () => {
     if (!currentUser || !topicIdParam) return;
     try {
       const activeTopicId = Number(topicIdParam);
 
-      // Fetch active topic details
-      const topicsList = await fetchTopics(currentUser.id, 'chinese');
-      const topic = topicsList.find((t) => t.id === activeTopicId);
-      setCurrentTopic(topic || null);
-
-      // Fetch stats for active topic and selected session
-      const statsData = await fetchStats(currentUser.id, activeTopicId, selectedSessionId);
-      setStats(statsData);
-
-      // Fetch sessions list for this topic
-      await loadSessionsList(currentUser.id, activeTopicId);
-
-      // Fetch vocabularies for active topic
       const params: any = { topic_id: activeTopicId };
       if (globalSearch.trim()) params.search = globalSearch;
       if (selectedSessionId !== 'all') params.session_id = selectedSessionId;
       if (selectedMemoryLevel !== 'all') params.memory_level = selectedMemoryLevel;
 
-      const vocabData = await fetchVocabularies(currentUser.id, params);
+      // Parallelize all Supabase queries with Promise.all
+      const [topicsList, statsData, sessionsList, vocabData] = await Promise.all([
+        fetchTopics(currentUser.id, 'chinese'),
+        fetchStats(currentUser.id, activeTopicId, selectedSessionId),
+        fetchSessions(currentUser.id, 'chinese', activeTopicId),
+        fetchVocabularies(currentUser.id, params)
+      ]);
+
+      const topic = topicsList.find((t) => t.id === activeTopicId);
+      setCurrentTopic(topic || null);
+      setStats(statsData);
+      setSessions(sessionsList);
       setVocabularies(vocabData);
     } catch (error) {
       console.error('Error loading Chinese page data:', error);
@@ -232,14 +219,42 @@ export const ChinaPage = () => {
 
   const handleUpdateLevel = async (id: number, level: Vocabulary['memory_level']) => {
     try {
-      await updateVocabulary(id, {
-        memory_level: level
+      showToast(`Đã lưu mức độ nhớ: "${level}"`, 'success');
+
+      // Optimistically update local vocabularies state
+      const todayStr = new Date().toISOString().split('T')[0];
+      setVocabularies((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, memory_level: level, last_reviewed_at: todayStr } : item
+        )
+      );
+      setStudyVocabularies((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, memory_level: level, last_reviewed_at: todayStr } : item
+        )
+      );
+      setStats((prev) => {
+        const targetWord = vocabularies.find((v) => v.id === id);
+        if (!targetWord || targetWord.memory_level === level) return prev;
+        const newStats = { ...prev };
+        if (targetWord.memory_level === 'Rất nhớ' && newStats.rat_nho > 0) newStats.rat_nho--;
+        else if (targetWord.memory_level === 'Nhớ' && newStats.nho > 0) newStats.nho--;
+        else if (targetWord.memory_level === 'Hơi nhớ' && newStats.hoi_nho > 0) newStats.hoi_nho--;
+        else if (targetWord.memory_level === 'Dễ quên' && newStats.de_quen > 0) newStats.de_quen--;
+
+        if (level === 'Rất nhớ') newStats.rat_nho++;
+        else if (level === 'Nhớ') newStats.nho++;
+        else if (level === 'Hơi nhớ') newStats.hoi_nho++;
+        else if (level === 'Dễ quên') newStats.de_quen++;
+
+        return newStats;
       });
-      await loadData();
+
+      // Update DB in background
+      await updateVocabulary(id, { memory_level: level });
     } catch (error) {
       showToast('Cập nhật mức độ nhớ thất bại!', 'error');
       console.error('Error updating word level:', error);
-      throw error;
     }
   };
 
@@ -320,6 +335,7 @@ export const ChinaPage = () => {
       newParams.delete('study');
       setSearchParams(newParams, { replace: true });
     }
+    loadData();
   };
 
   const handleTriggerImport = () => {
@@ -658,7 +674,7 @@ export const ChinaPage = () => {
       />
 
       {/* Floating Toast Notifications Overlay */}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
+      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
         {toasts.map((toast) => {
           let bgClass = 'bg-white border-slate-200 text-text-charcoal';
           let Icon = null;

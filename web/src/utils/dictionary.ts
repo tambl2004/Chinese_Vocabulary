@@ -658,52 +658,61 @@ async function fetchGeminiContent(
     throw new Error('Chưa cấu hình VITE_GEMINI_API_KEY trong file .env.local');
   }
 
+  // Thứ tự ưu tiên model: 3.5 -> 3.1 -> 3.6
   const models = [
     'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
     'gemini-3.6-flash'
   ];
 
+  const MAX_CYCLES = 3; // Thử tối đa 3 vòng nếu tất cả model đều bị limit 429
   let lastError: any = null;
 
-  for (const model of models) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    try {
-      const body: any = {
-        contents: [{ parts: [{ text: prompt }] }]
-      };
-      if (isJson) {
-        body.generationConfig = {
-          responseMimeType: 'application/json'
+  for (let cycle = 0; cycle < MAX_CYCLES; cycle++) {
+    for (const model of models) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      try {
+        const body: any = {
+          contents: [{ parts: [{ text: prompt }] }]
         };
-      }
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          return text;
+        if (isJson) {
+          body.generationConfig = {
+            responseMimeType: 'application/json'
+          };
         }
-      } else {
-        const errText = await response.text();
-        console.warn(`Gemini model ${model} failed with status ${response.status}: ${errText}`);
-        lastError = new Error(`Lỗi Gemini (${model}): Trạng thái ${response.status}`);
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            return text;
+          }
+        } else {
+          const errText = await response.text();
+          console.warn(`Gemini model ${model} (Vòng ${cycle + 1}) gặp lỗi ${response.status}: ${errText}`);
+          lastError = new Error(`Lỗi Gemini (${model}): Trạng thái ${response.status}`);
+
+          // Nếu dính Rate Limit (429) hoặc 503, tạm dừng 1.2s rồi thử model kế tiếp/vòng kế tiếp
+          if (response.status === 429 || response.status === 503) {
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+          }
+        }
+      } catch (err) {
+        console.warn(`Gemini model ${model} (Vòng ${cycle + 1}) không thể fetch:`, err);
+        lastError = err;
       }
-    } catch (err) {
-      console.warn(`Gemini model ${model} failed to fetch:`, err);
-      lastError = err;
     }
   }
 
-  throw lastError || new Error('Tất cả các model Gemini được thử nghiệm đều không hoạt động.');
+  throw lastError || new Error('Tất cả các model Gemini đều không hoạt động hoặc bị giới hạn lưu lượng (429).');
 }
 
 export async function fetchGeminiExample(

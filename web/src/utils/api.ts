@@ -242,29 +242,31 @@ export async function fetchAdminEnglishStats() {
 // Topics API (Parent level)
 export async function fetchTopics(userId: string | number, type: 'chinese' | 'english') {
   const uid = userId.toString();
-  const { data: topics, error } = await supabase
-    .from('topics')
-    .select('*')
-    .eq('user_id', uid)
-    .eq('type', type)
-    .order('id', { ascending: true });
-
-  if (error) throw error;
-
   const tableName = type === 'chinese' ? 'vocabularies' : 'english_vocabularies';
-  const { data: vocabs } = await supabase
-    .from(tableName)
-    .select('topic_id')
-    .eq('user_id', uid);
+
+  const [topicsRes, vocabsRes] = await Promise.all([
+    supabase
+      .from('topics')
+      .select('*')
+      .eq('user_id', uid)
+      .eq('type', type)
+      .order('id', { ascending: true }),
+    supabase
+      .from(tableName)
+      .select('topic_id')
+      .eq('user_id', uid)
+  ]);
+
+  if (topicsRes.error) throw topicsRes.error;
 
   const countsMap: Record<number, number> = {};
-  vocabs?.forEach(v => {
+  vocabsRes.data?.forEach(v => {
     if (v.topic_id) {
       countsMap[v.topic_id] = (countsMap[v.topic_id] || 0) + 1;
     }
   });
 
-  return (topics as Topic[]).map(t => ({
+  return (topicsRes.data as Topic[]).map(t => ({
     ...t,
     word_count: countsMap[t.id] || 0
   }));
@@ -321,25 +323,27 @@ export async function fetchSessions(userId: string | number, type: 'chinese' | '
     query = query.eq('topic_id', topicId);
   }
 
-  const { data: sessions, error } = await query.order('id', { ascending: true });
-  if (error) throw error;
-
   const tableName = type === 'chinese' ? 'vocabularies' : 'english_vocabularies';
   let vocabQuery = supabase.from(tableName).select('session_id').eq('user_id', uid);
   if (topicId && topicId !== 'all') {
     vocabQuery = vocabQuery.eq('topic_id', topicId);
   }
 
-  const { data: vocabs } = await vocabQuery;
+  const [sessionsRes, vocabsRes] = await Promise.all([
+    query.order('id', { ascending: true }),
+    vocabQuery
+  ]);
+
+  if (sessionsRes.error) throw sessionsRes.error;
 
   const countsMap: Record<number, number> = {};
-  vocabs?.forEach(v => {
+  vocabsRes.data?.forEach(v => {
     if (v.session_id) {
       countsMap[v.session_id] = (countsMap[v.session_id] || 0) + 1;
     }
   });
 
-  return (sessions as Session[]).map(s => ({
+  return (sessionsRes.data as Session[]).map(s => ({
     ...s,
     word_count: countsMap[s.id] || 0
   }));
